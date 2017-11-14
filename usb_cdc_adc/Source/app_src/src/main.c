@@ -3,6 +3,14 @@
 #include "usbd_cdc_if.h"
 #include <stdio.h>
 
+#include "Board_LED.h"
+
+#include "spi_interface.h"
+
+
+static const uint32_t LED_GREEN = 0;
+static const uint32_t LED_RED = 1;
+
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
@@ -12,6 +20,7 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_DMA_Init(void) ;
 
+uint8_t MEMS_XYZ[6];
 uint16_t ADC_DUMP[2];
 
 int32_t DELAY_A;
@@ -23,19 +32,47 @@ uint32_t TERM_BIT0_1;
 uint32_t TERM_BIT0_0;
 uint32_t TERM_BIT1_1;
 uint32_t TERM_BIT1_0;
+
 int main(){
 
 	HAL_Init();
-  SystemClock_Config();
+   SystemClock_Config();
 	MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
+   MX_USB_DEVICE_Init();
 	MX_DMA_Init();
 	MX_ADC1_Init();
-
+	
+	//MX_SPI1_Init();
+	MX_SPI5_Init();
+	
+	LED_Initialize();
+	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_DUMP, 2);
 	
+//	const char *helloStr = "Hello\r\n";
+//	CDC_Transmit_HS( (uint8_t*)helloStr, len );
+	
+	/*
+	 L3GD20 init, register check
+	*/
+	SPI5_L3GD20_WRITE_REG(L3GD20_REG_CTRL_1, 
+		(0x03 << L3GD20_CTRL_1_OR_Pos) | 
+		(0x03 << L3GD20_CTRL_1_BW_Pos) | 
+		(0x01 << L3GD20_CTRL_1_PD_Pos) |
+		(0x01 << L3GD20_CTRL_1_Xen_Pos) |
+		(0x01 << L3GD20_CTRL_1_Zen_Pos) |
+		(0x01 << L3GD20_CTRL_1_Yen_Pos)
+	);
+	uint8_t rx = 0; 
+	SPI5_L3GD20_READ_REG(L3GD20_REG_WHOAMI, &rx);
+	if (rx == L3GD20_REG_WHOAMI_Val) LED_On(LED_GREEN);
+	
+	
 	while(1){
-		DELAY_A= 1000;
+		
+		LED_Off(LED_RED);
+		
+		DELAY_A = 1000;
 		
 		while( (DELAY_A--) > 0 ){
 			if( ADC_DUMP[0] & 0x1 )
@@ -48,12 +85,25 @@ int main(){
 			else
 				TERM_BIT1_0++;
 			
-			DELAY_B= 1000000;
+			DELAY_B = 1000000;
 			while( (DELAY_B--) > 0 ){}
 		}
 		
-		len = sprintf(TX_DATA, "TEMPERATURE MEASURE \n\r BIT0 0: %d \n\r BIT0 1: %d \n\r BIT1 0: %d \n\r BIT1 1: %d \n\r", 
-		TERM_BIT0_0, TERM_BIT0_1, TERM_BIT1_0, TERM_BIT1_1);
+		LED_On(LED_RED);
+		
+		SPI5_L3GD20_READ_XYZ(MEMS_XYZ);
+		
+		len = sprintf(TX_DATA, 
+			"TEMPERATURE MEASURE \n\r BIT0 0: %d \n\r BIT0 1: %d \n\r BIT1 0: %d \n\r BIT1 1: %d \n\r", 
+			TERM_BIT0_0, TERM_BIT0_1, TERM_BIT1_0, TERM_BIT1_1);
+		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+		
+		len = sprintf(TX_DATA, 
+			"MEMS MEASURE X/Y/Z %#010x %#010x %#010x \n\r", 
+			((uint16_t)MEMS_XYZ[1] << 8) | MEMS_XYZ[0], 
+			((uint16_t)MEMS_XYZ[3] << 8) | MEMS_XYZ[2],
+			((uint16_t)MEMS_XYZ[5] << 8) | MEMS_XYZ[4]
+		);
 		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 	}
 	
@@ -66,7 +116,10 @@ int main(){
 	__HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+	// SPI5
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOF_CLK_ENABLE();
 }
 /*
 void DMA2_Stream0_IRQHandler(){
@@ -201,6 +254,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     hdma_adc1.Init.Mode = DMA_CIRCULAR;
     hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
     hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	 
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
     {
       _Error_Handler(__FILE__, __LINE__);
