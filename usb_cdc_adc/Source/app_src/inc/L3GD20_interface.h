@@ -31,6 +31,8 @@
 #define L3GD20_CTRL_1_Yen_Pos				1u			// Y axis enable 		[1]
 #define L3GD20_CTRL_1_Xen_Pos				0u			// X axis enable 		[0]
 
+#define L3GD20_STATUS_ZYXDA_Pos 			3u
+
 /*
 			SPI interface defines
 */
@@ -80,8 +82,22 @@
 #define SPI5_MOSI_GPIO_PORT              GPIOF
 #define SPI5_MOSI_AF                     GPIO_AF5_SPI5
 
+typedef struct {
+	uint8_t x_lsb;
+	uint8_t x_msb;
+	uint8_t y_lsb;
+	uint8_t y_msb;
+	uint8_t z_lsb;
+	uint8_t z_msb;
+} L3GD20_XYZ_data_t;
+
 extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi5;
+
+
+uint8_t L3GD20_initialize(void);
+uint8_t L3GD20_newXYZavailable(void);
+void L3GD20_readXYZ(L3GD20_XYZ_data_t *xyz_data);
 
 /*
 	SPI functions
@@ -98,8 +114,11 @@ void SPI1_L3GD20_READ_REG(uint8_t addr, uint8_t *data);
 void SPI5_L3GD20_WRITE_REG(uint8_t addr, uint8_t data);
 void SPI5_L3GD20_READ_REG(uint8_t addr, uint8_t *data);
 
-void SPI5_L3GD20_READ_XYZ(uint8_t *dataBuffer);
 
+
+/*
+	SPI hardware initialize functions
+*/
 void MX_SPI1_Init(void);
 void MX_SPI5_Init(void);
 
