@@ -23,6 +23,9 @@ volatile uint32_t len;
 
 int main(){
 
+	/*
+		Initialize start
+	*/
 	HAL_Init();
     SystemClock_Config();
 	MX_GPIO_Init();
@@ -32,6 +35,9 @@ int main(){
 	L3GD20_initialize();
 	
 	LED_Initialize();
+	/*
+		Initialize stop
+	*/
 	
 	const char *helloStr = "Hello\r\n";
 	CDC_Transmit_HS( (uint8_t*)helloStr, len );
@@ -39,18 +45,42 @@ int main(){
 	L3GD20_XYZ_data_t xyz_data;
 	uint16_t termval;
 	
+	LED_On(LED_GREEN);
+	
 	while(1){
 		
-		
+		volatile int x = 0;
+		const uint16_t OUTER_DELAY = 100;
+		const uint16_t INNER_DELAY = 10000;
+		for (int i = 0; i< OUTER_DELAY; ++i){
+			for (int j = 0; j<INNER_DELAY; ++j)
+				x += 1;
+		}
 
+		/*
+			#TODO usunac ta notatke
+			Te funkcje pobieraja dane odpowiednio z zyroskopu i termometru
+			Skladamy wyjsciowe bajty z 4 kolejnych pomiarow, po 2 bity z kazdego
+			dla termometru / 3 osi zyroskopu osobno. 
+			Z zyroskopu mozna czytac z max czest. ~750Hz
+			
+			Trzeba w glownej petli programu napisac jakies taktowanie pomiarow,
+			nie pisalem bo duzo zalezy od tego, jak bedzie wygladac 
+			czesc kodu liczaca entropie i wystawiajaca bajty dla usera
 		
+			Przyklad skladania
+			uint8_t b = 0x00 | nowe_dane & 0x03; // dane z 1 pomiaru
+			petla : 3 pomiary
+				b =<< 2;
+				b |= nowe_dane & 0x03;
+		*/
 		L3GD20_readXYZ(&xyz_data);
 		termval = Termometer_getADCReading();
 		
-		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
 		len = sprintf(TX_DATA, 
-			"MEMS MEASURE X/Y/Z %#010x %#010x %#010x \n\r", 
+			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
+			termval,
 			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
 			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
 			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb

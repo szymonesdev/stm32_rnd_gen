@@ -427,9 +427,14 @@
               <FilePath>.\Source\app_src\src\usbd_cdc_if.c</FilePath>
             </File>
             <File>
-              <FileName>spi_interface.c</FileName>
+              <FileName>L3GD20_interface.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Source\app_src\src\spi_interface.c</FilePath>
+              <FilePath>.\Source\app_src\src\L3GD20_interface.c</FilePath>
+            </File>
+            <File>
+              <FileName>termometer_interface.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Source\app_src\src\termometer_interface.c</FilePath>
             </File>
           </Files>
         </Group>
