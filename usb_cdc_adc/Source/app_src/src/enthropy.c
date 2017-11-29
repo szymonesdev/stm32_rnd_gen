@@ -3,6 +3,7 @@
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
 double const maxEnthropy = 8;
+double currentEnthropy = 0;
 const uint8_t u8Bits = 8;
 
 uint8_t temp[DATA_SIZE_4 * u8Bits];//only one bit could be valid so u8Bits max to full fill DATA_SIZE_4
@@ -16,6 +17,8 @@ uint8_t gyroBits = 4;
 
 uint8_t randomArry[DATA_SIZE * 2];// 2 prevent unallowed memory access
 int arryPos = 0; // mark: index, all higher and that one index are random valid
+
+uint8_t* clientOutput;//output data
 
 uint8_t getLSB(uint16_t number, uint8_t digits)
 {
@@ -172,4 +175,15 @@ void fullFillRandomArry(double minEnthropy)
 		minEnthropy = (minEnthropy > 0) ? (minEnthropy) : 0;
 		fullFillRandomArry(minEnthropy);
 	}
+}
+
+uint8_t* getRandomData(uint16_t size, double minEnthropy = 7.0)
+{
+	if (minEnthropy > currentEnthropy)
+	{
+		fullFillRandomArry(minEnthropy);
+	}
+	memcpy(clientOutput, randomArry, size * sizeof(uint8_t));
+
+	return clientOutput;
 }
