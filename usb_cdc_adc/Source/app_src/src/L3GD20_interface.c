@@ -175,36 +175,36 @@ void MX_SPI5_Init(void){
 */
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi){
-	if (hspi->Instance == SPI1){
-			GPIO_InitTypeDef  GPIO_InitStruct;
-	  
-			SPI1_SCK_GPIO_CLK_ENABLE();
-			SPI1_MISO_GPIO_CLK_ENABLE();
-			SPI1_MOSI_GPIO_CLK_ENABLE();
-		  /* Enable SPI clock */
-			SPI1_CLK_ENABLE();
-		  
-			GPIO_InitStruct.Pin       = SPI1_SCK_PIN;
-			GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-			GPIO_InitStruct.Pull      = GPIO_PULLDOWN;
-			GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-			GPIO_InitStruct.Alternate = SPI1_SCK_AF;
-		  
-			HAL_GPIO_Init(SPI1_SCK_GPIO_PORT, &GPIO_InitStruct);
-		  
-			/* SPI MOSI GPIO pin configuration  */
-			GPIO_InitStruct.Pin = SPI1_MOSI_PIN;
-			GPIO_InitStruct.Pull      = GPIO_PULLUP;
-			GPIO_InitStruct.Alternate = SPI1_MOSI_AF;
-			 
-			HAL_GPIO_Init(SPI1_MOSI_GPIO_PORT, &GPIO_InitStruct); 
+//	if (hspi->Instance == SPI1){
+//			GPIO_InitTypeDef  GPIO_InitStruct;
+//	  
+//			SPI1_SCK_GPIO_CLK_ENABLE();
+//			SPI1_MISO_GPIO_CLK_ENABLE();
+//			SPI1_MOSI_GPIO_CLK_ENABLE();
+//		  /* Enable SPI clock */
+//			SPI1_CLK_ENABLE();
+//		  
+//			GPIO_InitStruct.Pin       = SPI1_SCK_PIN;
+//			GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//			GPIO_InitStruct.Pull      = GPIO_PULLDOWN;
+//			GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
+//			GPIO_InitStruct.Alternate = SPI1_SCK_AF;
+//		  
+//			HAL_GPIO_Init(SPI1_SCK_GPIO_PORT, &GPIO_InitStruct);
+//		  
+//			/* SPI MOSI GPIO pin configuration  */
+//			GPIO_InitStruct.Pin = SPI1_MOSI_PIN;
+//			GPIO_InitStruct.Pull      = GPIO_PULLUP;
+//			GPIO_InitStruct.Alternate = SPI1_MOSI_AF;
+//			 
+//			HAL_GPIO_Init(SPI1_MOSI_GPIO_PORT, &GPIO_InitStruct); 
 
-			/* SPI MISO GPIO pin configuration  */
-			GPIO_InitStruct.Pin = SPI1_MISO_PIN;
-			GPIO_InitStruct.Alternate = SPI1_MISO_AF;
-		  
-			HAL_GPIO_Init(SPI1_MISO_GPIO_PORT, &GPIO_InitStruct);
-	}
+//			/* SPI MISO GPIO pin configuration  */
+//			GPIO_InitStruct.Pin = SPI1_MISO_PIN;
+//			GPIO_InitStruct.Alternate = SPI1_MISO_AF;
+//		  
+//			HAL_GPIO_Init(SPI1_MISO_GPIO_PORT, &GPIO_InitStruct);
+//	}
 	
 	if (hspi->Instance == SPI5){
 			GPIO_InitTypeDef  GPIO_InitStruct;
@@ -240,14 +240,14 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi){
 
 void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
 {
-	if (hspi->Instance == SPI1){
-		  SPI1_FORCE_RESET();
-		  SPI1_RELEASE_RESET();
+//	if (hspi->Instance == SPI1){
+//		  SPI1_FORCE_RESET();
+//		  SPI1_RELEASE_RESET();
 
-		  HAL_GPIO_DeInit(SPI1_SCK_GPIO_PORT, SPI1_SCK_PIN);
-		  HAL_GPIO_DeInit(SPI1_MISO_GPIO_PORT, SPI1_MISO_PIN);
-		  HAL_GPIO_DeInit(SPI1_MOSI_GPIO_PORT, SPI1_MOSI_PIN);
-	}
+//		  HAL_GPIO_DeInit(SPI1_SCK_GPIO_PORT, SPI1_SCK_PIN);
+//		  HAL_GPIO_DeInit(SPI1_MISO_GPIO_PORT, SPI1_MISO_PIN);
+//		  HAL_GPIO_DeInit(SPI1_MOSI_GPIO_PORT, SPI1_MOSI_PIN);
+//	}
 	
 	if (hspi->Instance == SPI5){
 		  SPI5_FORCE_RESET();

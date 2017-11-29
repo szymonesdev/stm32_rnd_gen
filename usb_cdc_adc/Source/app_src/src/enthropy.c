@@ -4,6 +4,8 @@
 
 #include <string.h>
 
+static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
+
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
 double const maxEnthropy = 8;
@@ -22,7 +24,8 @@ uint8_t gyroBits = 4;
 uint8_t randomArry[DATA_SIZE * 2];// 2 prevent unallowed memory access
 int arryPos = 0; // mark: index, all higher and that one index are random valid
 
-uint8_t* clientOutput;//output data
+//uint8_t* clientOutput;//output data
+
 
 uint8_t getLSB(uint16_t number, uint8_t digits)
 {
@@ -80,6 +83,7 @@ void fullFillTemporaryArrys()
 		gyroX[i] = getLSB(gyroData[0], gyroBits);
 		gyroY[i] = getLSB(gyroData[1], gyroBits);
 		gyroZ[i] = getLSB(gyroData[2], gyroBits);
+		HAL_Delay(GYRO_MEASUREMENT_DELAY_MS);
 	}
 }
 
@@ -181,25 +185,21 @@ void fullFillRandomArry(double minEnthropy)
 	}
 }
 
-uint8_t* getRandomData(uint16_t size)
+void getRandomData(uint8_t *buffer, uint16_t size)
 {
 	double minEnthropy = 7.0;
 	if (minEnthropy > currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
-	memcpy(clientOutput, randomArry, size * sizeof(uint8_t));
-
-	return clientOutput;
+	memcpy(buffer, randomArry, size * sizeof(uint8_t));
 }
 
-uint8_t* getRandomData2(uint16_t size, double minEnthropy)
+void getRandomData2(uint8_t *buffer, uint16_t size, double minEnthropy)
 {
 	if (minEnthropy > currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
-	memcpy(clientOutput, randomArry, size * sizeof(uint8_t));
-
-	return clientOutput;
+	memcpy(buffer, randomArry, size * sizeof(uint8_t));
 }

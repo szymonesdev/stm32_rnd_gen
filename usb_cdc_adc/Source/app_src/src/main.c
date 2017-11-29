@@ -4,21 +4,20 @@
 
 */
 
-
 #include <stdio.h>
 
 #include "stm32f4xx_hal.h"
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
-#include "Board_LED.h"
+//#include "Board_LED.h"
 
 #include "termometer_interface.h"
 #include "L3GD20_interface.h"
 #include "enthropy.h"
 
-static const uint32_t LED_GREEN = 0;
-static const uint32_t LED_RED = 1;
+//static const uint32_t LED_GREEN = 0;
+//static const uint32_t LED_RED = 1;
 
 static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
@@ -43,28 +42,22 @@ int main(){
 	Termometer_initialize();
 	L3GD20_initialize();
 	
-	LED_Initialize();
+	//LED_Initialize();
 	/*
 		Initialize stop
 	*/
 	
-	const char *helloStr = "Hello\r\n";
-	CDC_Transmit_HS( (uint8_t*)helloStr, len );
-	
 	L3GD20_XYZ_data_t xyz_data;
 	uint16_t termval;
 	
-	LED_On(LED_GREEN);
+	const uint16_t BYTECNT = 50;
+	uint8_t buff[BYTECNT];
+	
+	//LED_On(LED_GREEN);
+	
+	getRandomData2(buff, BYTECNT, 1.0);
 	
 	while(1){
-		
-		volatile int x = 0;
-		const uint16_t OUTER_DELAY = 100;
-		const uint16_t INNER_DELAY = 10000;
-		for (int i = 0; i< OUTER_DELAY; ++i){
-			for (int j = 0; j<INNER_DELAY; ++j)
-				x += 1;
-		}
 
 		/*
 			#TODO usunac ta notatke
@@ -83,20 +76,22 @@ int main(){
 				b =<< 2;
 				b |= nowe_dane & 0x03;
 		*/
-		L3GD20_readXYZ(&xyz_data);
-		termval = Termometer_getADCReading();
+//		HAL_Delay(2);
+//		L3GD20_readXYZ(&xyz_data);
+//		termval = Termometer_getADCReading();
+//		len = sprintf(TX_DATA, 
+//			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
+//			termval,
+//			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
+//			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
+//			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
+//		);
+//		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
+		HAL_Delay(1000);
+		getRandomData2(buff, BYTECNT, 0.0);
+		CDC_Transmit_HS( buff, BYTECNT );
 		
-		len = sprintf(TX_DATA, 
-			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
-			termval,
-			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
-			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
-			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
-		);
-		
-		
-		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 	}
 	
 	return 0;
