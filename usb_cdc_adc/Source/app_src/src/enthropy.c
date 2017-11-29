@@ -58,7 +58,54 @@ void pushToRandomArry(double dataEnthropy, uint8_t* data, double minEnthropy, ui
 	}
 }
 
+uint8_t temp[DATA_SIZE_4 * u8Bits];//only one bit could be valid so u8Bits max to full fill DATA_SIZE_4
+uint8_t gyroX[DATA_SIZE_4 * u8Bits];
+uint8_t gyroY[DATA_SIZE_4 * u8Bits];
+uint8_t gyroZ[DATA_SIZE_4 * u8Bits];
+uint8_t* gyroData;
 
+uint8_t tempBits = 4;//valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
+uint8_t gyroBits = 4;
+
+void fullFillTemporaryArrys()
+{
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits / tempBits; ++i)
+	{
+		temp[i] = getLSB(getTempByte(), tempBits);
+	}
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits / gyroBits; ++i)
+	{
+		gyroData = getgyroThreeByte();
+		gyroX[i] = getLSB(gyroData[0], gyroBits);
+		gyroY[i] = getLSB(gyroData[1], gyroBits);
+		gyroZ[i] = getLSB(gyroData[2], gyroBits);
+	}
+}
+
+void concatenateTemporaryArrys()
+{
+	int pos = 0;
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / tempBits)
+	{
+		for (int j = 0; j < u8Bits / tempBits; ++j)
+		{
+			temp[pos] += temp[i + j] << tempBits;
+		}
+		++pos;
+	}
+
+	pos = 0;
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / gyroBits)
+	{
+		for (int j = 0; j < u8Bits / gyroBits; ++j)
+		{
+			gyroX[i] += gyroX[i + j] << gyroBits;
+			gyroY[i] += gyroY[i + j] << gyroBits;
+			gyroZ[i] += gyroZ[i + j] << gyroBits;
+		}
+		++pos;
+	}
+}
 
 uint8_t randomArry[DATA_SIZE * 2];// 2 prevent unallowed memory access
 int arryPos = 0; // mark: index, all higher and that one index are random valid
@@ -68,37 +115,9 @@ uint8_t* fullFillRandomArry(double minEnthropy)
 	static int counter = 0;//recursion number, stack overflow
 	++counter;
 
-	static uint8_t temp[DATA_SIZE_4 * u8Bits];//only one bit could be valid so u8Bits max to full fill DATA_SIZE_4
-	static uint8_t gyroX[DATA_SIZE_4 * u8Bits];
-	static uint8_t gyroY[DATA_SIZE_4 * u8Bits];
-	static uint8_t gyroZ[DATA_SIZE_4 * u8Bits];
-	static uint8_t* gyroData;
+	fullFillTemporaryArrys();
+	concatenateTemporaryArrys();
 
-	static uint8_t tempBits = 4;//valid bits(LSB), expected to satisfy minEnthropy, i no decrease
-	static uint8_t gyroXbits = 4;
-	static uint8_t gyroYbits = 4;
-	static uint8_t gyroZbits = 4;
-
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits / tempBits; ++i)
-	{
-		temp[i] = getLSB(getTempByte(), tempBits);
-	}
-	for (int i = 0; i < DATA_SIZE_4; ++i)
-	{
-		gyroData = getgyroThreeByte();
-	}
-	for (int i = 0; i < DATA_SIZE_4; ++i)
-	{
-		gyroX[i] = getLSB(gyroData[0], gyroXbits);
-	}
-	for (int i = 0; i < DATA_SIZE_4; ++i)
-	{
-		gyroY[i] = getLSB(gyroData[1], gyroYbits);
-	}
-	for (int i = 0; i < DATA_SIZE_4; ++i)
-	{
-		gyroZ[i] = getLSB(gyroData[2], gyroZbits);
-	}
 	double eTemp = calcEnthropy(temp);
 	double eGyroX = calcEnthropy(gyroX);
 	double eGyroY = calcEnthropy(gyroY);
