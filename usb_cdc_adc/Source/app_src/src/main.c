@@ -1,12 +1,21 @@
+/*
+
+	MAIN
+
+*/
+
+
+#include <stdio.h>
+
 #include "stm32f4xx_hal.h"
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
-#include <stdio.h>
 
 #include "Board_LED.h"
 
 #include "termometer_interface.h"
 #include "L3GD20_interface.h"
+#include "enthropy.h"
 
 static const uint32_t LED_GREEN = 0;
 static const uint32_t LED_RED = 1;
@@ -27,9 +36,9 @@ int main(){
 		Initialize start
 	*/
 	HAL_Init();
-    SystemClock_Config();
+   SystemClock_Config();
 	MX_GPIO_Init();
-    MX_USB_DEVICE_Init();
+   MX_USB_DEVICE_Init();
 
 	Termometer_initialize();
 	L3GD20_initialize();
@@ -93,7 +102,7 @@ int main(){
 	return 0;
 }
 
- static void MX_GPIO_Init(void)
+static void MX_GPIO_Init(void)
 {
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();

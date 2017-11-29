@@ -1,4 +1,8 @@
+
+#include "enthropy.h"
 #include "enthropy_data.h"
+
+#include <string.h>
 
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
@@ -35,12 +39,12 @@ uint8_t getTempByte()
 
 uint8_t* getgyroThreeByte()
 {
-	L3GD20_XYZ_data_t* xyz_data = (L3GD20_XYZ_data_t*)malloc(sizeof(L3GD20_XYZ_data_t));
+	L3GD20_XYZ_data_t xyz_data;
 	L3GD20_readXYZ(&xyz_data);
 	static uint8_t aryThree[3];
-	aryThree[0] = xyz_data->x_lsb;
-	aryThree[1] = xyz_data->y_lsb;
-	aryThree[2] = xyz_data->z_lsb;
+	aryThree[0] = xyz_data.x_lsb;
+	aryThree[1] = xyz_data.y_lsb;
+	aryThree[2] = xyz_data.z_lsb;
 	return aryThree;
 }
 
@@ -153,7 +157,7 @@ void pushIf(double minEnthropy)
 		tmpGyroBits /= 2;
 	}
 
-	gyroBits == tmpGyroBits ? gyroBits = gyroBits : gyroBits /= 2;
+	gyroBits = gyroBits == tmpGyroBits ? gyroBits : gyroBits / 2;
 }
 
 void fullFillRandomArry(double minEnthropy)
@@ -177,7 +181,19 @@ void fullFillRandomArry(double minEnthropy)
 	}
 }
 
-uint8_t* getRandomData(uint16_t size, double minEnthropy = 7.0)
+uint8_t* getRandomData(uint16_t size)
+{
+	double minEnthropy = 7.0;
+	if (minEnthropy > currentEnthropy)
+	{
+		fullFillRandomArry(minEnthropy);
+	}
+	memcpy(clientOutput, randomArry, size * sizeof(uint8_t));
+
+	return clientOutput;
+}
+
+uint8_t* getRandomData2(uint16_t size, double minEnthropy)
 {
 	if (minEnthropy > currentEnthropy)
 	{

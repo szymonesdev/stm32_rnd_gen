@@ -436,6 +436,11 @@
               <FileType>1</FileType>
               <FilePath>.\Source\app_src\src\termometer_interface.c</FilePath>
             </File>
+            <File>
+              <FileName>enthropy.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Source\app_src\src\enthropy.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
