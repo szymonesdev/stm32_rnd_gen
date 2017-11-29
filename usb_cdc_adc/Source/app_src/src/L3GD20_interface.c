@@ -1,4 +1,4 @@
-#include "spi_interface.h"
+#include "L3GD20_interface.h"
 
 #include "stm32f4xx_hal.h"
 #include <stdio.h>
@@ -6,6 +6,48 @@
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi5;
+
+uint8_t L3GD20_initialize(void){
+	// SPI5
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOF_CLK_ENABLE();
+	MX_SPI5_Init();
+	
+	
+	// L3GD20 init, register check
+	SPI5_L3GD20_WRITE_REG(L3GD20_REG_CTRL_1, 
+		(0x03 << L3GD20_CTRL_1_OR_Pos) | 
+		(0x03 << L3GD20_CTRL_1_BW_Pos) | 
+		(0x01 << L3GD20_CTRL_1_PD_Pos) |
+		(0x01 << L3GD20_CTRL_1_Xen_Pos) |
+		(0x01 << L3GD20_CTRL_1_Zen_Pos) |
+		(0x01 << L3GD20_CTRL_1_Yen_Pos)
+	);
+	uint8_t regVal = 0; 
+	
+	for (int i = 3; i; ++i){
+		SPI5_L3GD20_READ_REG(L3GD20_REG_WHOAMI, &regVal);
+		if (regVal == L3GD20_REG_WHOAMI_Val) 
+			return 1;
+	}
+	return 0;
+}
+
+uint8_t L3GD20_newXYZavailable(void){
+	uint8_t regVal = 0;
+	SPI5_L3GD20_READ_REG(L3GD20_REG_WHOAMI, &regVal);
+	return regVal & (1<<L3GD20_STATUS_ZYXDA_Pos);
+}
+
+void L3GD20_readXYZ(L3GD20_XYZ_data_t *xyz_data) {
+	uint8_t addr = L3GD20_REG_OUT_X_L | 0x80 | 0x40; // Read mode, address increment
+	SPI5_SELECT();
+	HAL_SPI_Transmit(&hspi5, &addr, 1, SPIx_TIMEOUT);
+	HAL_SPI_Receive(&hspi5, &(xyz_data->x_lsb), 6, SPIx_TIMEOUT);
+	SPI5_DESELECT();
+}
+
+
 
 void SPI1_SELECT(void) { HAL_GPIO_WritePin(SPI1_CS_GPIO_PORT, SPI1_CS_PIN, GPIO_PIN_RESET); }
 void SPI1_DESELECT(void) { HAL_GPIO_WritePin(SPI1_CS_GPIO_PORT, SPI1_CS_PIN, GPIO_PIN_SET); }
@@ -45,20 +87,11 @@ void SPI5_L3GD20_READ_REG(uint8_t addr, uint8_t *data){
 	SPI5_DESELECT();
 }
 
-
-void SPI5_L3GD20_READ_XYZ(uint8_t *dataBuffer) {
-	uint8_t addr = L3GD20_REG_OUT_X_L | 0x80 | 0x40; // Read mode, address increment
-	SPI5_SELECT();
-	HAL_SPI_Transmit(&hspi5, &addr, 1, SPIx_TIMEOUT);
-	HAL_SPI_Receive(&hspi5, dataBuffer, 6, SPIx_TIMEOUT);
-	SPI5_DESELECT();
-}
-
 /*
 	---------------- SPI 1 init ----------------
 */	
 void MX_SPI1_Init(void){
-	
+	__HAL_RCC_GPIOE_CLK_ENABLE();
 	// SPI1 init
 	
 	hspi1.Instance = SPI1;
