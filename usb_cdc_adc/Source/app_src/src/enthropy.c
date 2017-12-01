@@ -1,7 +1,7 @@
 
 #include "enthropy.h"
 #include "enthropy_data.h"
-
+#include <math.h>
 #include <string.h>
 
 static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
@@ -10,7 +10,10 @@ int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy
 int const DATA_SIZE_4 = DATA_SIZE / 4;
 double const maxEnthropy = 8;
 double currentEnthropy = 0;
-const uint8_t u8Bits = 8;
+uint8_t const u8Bits = 8;
+
+double addendPrInside[DATA_SIZE_4] = { 0 };
+double addendPrClient[DATA_SIZE_4] = { 0 };
 
 uint8_t temp[DATA_SIZE_4 * u8Bits];//only one bit could be valid so u8Bits max to full fill DATA_SIZE_4
 uint8_t gyroX[DATA_SIZE_4 * u8Bits];
@@ -27,20 +30,20 @@ int arryPos = 0; // mark: index, all higher and that one index are random valid
 //uint8_t* clientOutput;//output data
 
 
-uint8_t getLSB(uint16_t number, uint8_t digits)
+static uint8_t getLSB(uint16_t number, uint8_t digits)
 {
 	number <<= 16 - digits;
 	number >>= 16 - digits;
 	return number;
 }
 
-uint8_t getTempByte()
+static uint8_t getTempByte()
 {
 	uint8_t result = (uint8_t)(Termometer_getADCReading());
 	return result;
 }
 
-uint8_t* getgyroThreeByte()
+static uint8_t* getgyroThreeByte()
 {
 	L3GD20_XYZ_data_t xyz_data;
 	L3GD20_readXYZ(&xyz_data);
@@ -51,9 +54,31 @@ uint8_t* getgyroThreeByte()
 	return aryThree;
 }
 
-double calcEnthropy(uint8_t* data)
+static double getAddendPrInside(uint16_t occurences)
 {
-	static uint16_t occurences[DATA_SIZE_4] = { 0 };
+	if (occurences == 0)
+		return 0;
+	else
+	{
+		if (addendPrInside[occurences] == 0)
+		{
+			double pr = occurences / (double)DATA_SIZE_4;
+			double addend = pr * log2(pr);
+			addendPrInside[occurences] = addend;
+			return addend;
+		}
+		else
+		{
+			double addend = addendPrInside[occurences];
+			return addend;
+		}
+	}
+}
+
+static double calcEnthropy(uint8_t* data)
+{
+	uint16_t const occurSize = UINT8_MAX + 1;
+	static uint16_t occurences[occurSize] = { 0 };
 
 	for (int i = 0; i < DATA_SIZE_4; ++i)
 	{
@@ -61,17 +86,17 @@ double calcEnthropy(uint8_t* data)
 	}
 
 	double sum = 0;
-	for (int i = 0; i < DATA_SIZE_4; ++i)
+	for (int i = 0; i < occurSize; ++i)
 	{
-		sum += _1024LOG2[occurences[i]];
+		sum += getAddendPrInside(occurences[i]);
 	}
 	double enthropy = -sum + 0.0000000001;
 
-	memset(occurences, 0, DATA_SIZE_4);
+	memset(occurences, 0, occurSize * sizeof(uint16_t));
 	return enthropy;
 }
 
-void fullFillTemporaryArrys()
+static void fullFillTemporaryArrys()
 {
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits / tempBits; ++i)
 	{
@@ -87,12 +112,12 @@ void fullFillTemporaryArrys()
 	}
 }
 
-void concatenateTemporaryArrys()
+static void concatenateTemporaryArrys()
 {
 	int pos = 0;
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / tempBits)
 	{
-		for (int j = 0; j < u8Bits / tempBits; ++j)
+		for (int j = 1; j < u8Bits / tempBits; ++j)
 		{
 			temp[pos] += temp[i + j] << tempBits;
 		}
@@ -102,17 +127,17 @@ void concatenateTemporaryArrys()
 	pos = 0;
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / gyroBits)
 	{
-		for (int j = 0; j < u8Bits / gyroBits; ++j)
+		for (int j = 1; j < u8Bits / gyroBits; ++j)
 		{
-			gyroX[i] += gyroX[i + j] << gyroBits;
-			gyroY[i] += gyroY[i + j] << gyroBits;
-			gyroZ[i] += gyroZ[i + j] << gyroBits;
+			gyroX[pos] += gyroX[i + j] << gyroBits;
+			gyroY[pos] += gyroY[i + j] << gyroBits;
+			gyroZ[pos] += gyroZ[i + j] << gyroBits;
 		}
 		++pos;
 	}
 }
 
-void pushIf(double minEnthropy)
+static void pushIf(double minEnthropy)
 {
 	double eTemp = calcEnthropy(temp);
 	double eGyroX = calcEnthropy(gyroX);
@@ -162,6 +187,10 @@ void pushIf(double minEnthropy)
 	}
 
 	gyroBits = gyroBits == tmpGyroBits ? gyroBits : gyroBits / 2;
+	if (gyroBits == 0)
+	{
+		gyroBits = 1;
+	}
 }
 
 void fullFillRandomArry(double minEnthropy)
