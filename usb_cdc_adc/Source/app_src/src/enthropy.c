@@ -1,10 +1,9 @@
-
+#define NDEBUG
+#include <assert.h>
 #include "enthropy.h"
-#include "enthropy_data.h"
 #include <math.h>
-#include <string.h>
+#include <cstdint>
 
-static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
 
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
@@ -14,6 +13,7 @@ uint8_t const u8Bits = 8;
 
 double addendPrInside[DATA_SIZE_4] = { 0 };
 double addendPrClient[DATA_SIZE_4] = { 0 };
+uint16_t validAddendPrClientSize = 0;
 
 uint8_t temp[DATA_SIZE_4 * u8Bits];//only one bit could be valid so u8Bits max to full fill DATA_SIZE_4
 uint8_t gyroX[DATA_SIZE_4 * u8Bits];
@@ -24,17 +24,15 @@ uint8_t* gyroData;
 uint8_t tempBits = 4;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
 uint8_t gyroBits = 4;
 
-uint8_t randomArry[DATA_SIZE * 2];// 2 prevent unallowed memory access
-int arryPos = 0; // mark: index, all higher and that one index are random valid
-
-//uint8_t* clientOutput;//output data
-
+int const randArrySize = DATA_SIZE * 2;
+uint8_t randomArry[randArrySize];// 2 prevent unallowed memory access
+int arryPos = 0; // mark: index, all lower indexes are random valid
 
 static uint8_t getLSB(uint16_t number, uint8_t digits)
 {
 	number <<= 16 - digits;
 	number >>= 16 - digits;
-	return number;
+	return (uint8_t)number;
 }
 
 static uint8_t getTempByte()
@@ -54,7 +52,43 @@ static uint8_t* getgyroThreeByte()
 	return aryThree;
 }
 
-static double getAddendPrInside(uint16_t occurences)
+uint8_t* popRandomArry(int size)
+{
+	if (size > arryPos)
+	{
+		assert(0);
+	}
+	arryPos -= size;
+	return randomArry + arryPos; //retunr pointer to last "size" elements
+}
+
+static double getAddendPrClient(uint16_t occurences, uint16_t requestedSize)
+{
+	if (requestedSize != validAddendPrClientSize)
+		memset(addendPrClient, 0, DATA_SIZE_4 * sizeof(double));
+
+	if (occurences == 0)
+	{
+		return 0;
+	}
+	else
+	{
+		if (addendPrClient[occurences] == 0)
+		{
+			double pr = occurences / (double)requestedSize;
+			double addend = pr * log2(pr);
+			addendPrClient[occurences] = addend;
+			return addend;
+		}
+		else
+		{
+			double addend = addendPrClient[occurences];
+			return addend;
+		}
+	}
+}
+
+static double getAddendPrInside(uint16_t occurences, uint16_t requestedSize)
 {
 	if (occurences == 0)
 		return 0;
@@ -75,12 +109,12 @@ static double getAddendPrInside(uint16_t occurences)
 	}
 }
 
-static double calcEnthropy(uint8_t* data)
+static double calcEnthropy(uint8_t* data, uint16_t requestedSize, double(*addendF)(uint16_t, uint16_t))
 {
 	uint16_t const occurSize = UINT8_MAX + 1;
 	static uint16_t occurences[occurSize] = { 0 };
 
-	for (int i = 0; i < DATA_SIZE_4; ++i)
+	for (int i = 0; i < requestedSize; ++i)
 	{
 		++occurences[data[i]];
 	}
@@ -88,7 +122,7 @@ static double calcEnthropy(uint8_t* data)
 	double sum = 0;
 	for (int i = 0; i < occurSize; ++i)
 	{
-		sum += getAddendPrInside(occurences[i]);
+		sum += addendF(occurences[i], requestedSize);
 	}
 	double enthropy = -sum + 0.0000000001;
 
@@ -139,10 +173,10 @@ static void concatenateTemporaryArrys()
 
 static void pushIf(double minEnthropy)
 {
-	double eTemp = calcEnthropy(temp);
-	double eGyroX = calcEnthropy(gyroX);
-	double eGyroY = calcEnthropy(gyroY);
-	double eGyroZ = calcEnthropy(gyroZ);
+	double eTemp = calcEnthropy(temp, DATA_SIZE_4, getAddendPrInside);
+	double eGyroX = calcEnthropy(gyroX, DATA_SIZE_4, getAddendPrInside);
+	double eGyroY = calcEnthropy(gyroY, DATA_SIZE_4, getAddendPrInside);
+	double eGyroZ = calcEnthropy(gyroZ, DATA_SIZE_4, getAddendPrInside);
 
 	uint8_t tmpGyroBits = gyroBits;//several /2
 
@@ -158,7 +192,7 @@ static void pushIf(double minEnthropy)
 
 	if (eGyroX >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
 	{
-		memcpy(randomArry, gyroX, DATA_SIZE_4);
+		memcpy(randomArry + arryPos, gyroX, DATA_SIZE_4);
 		arryPos += DATA_SIZE_4;
 	}
 	else
@@ -168,7 +202,7 @@ static void pushIf(double minEnthropy)
 
 	if (eGyroY >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
 	{
-		memcpy(randomArry, gyroY, DATA_SIZE_4);
+		memcpy(randomArry + arryPos, gyroY, DATA_SIZE_4);
 		arryPos += DATA_SIZE_4;
 	}
 	else
@@ -178,7 +212,7 @@ static void pushIf(double minEnthropy)
 
 	if (eGyroZ >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
 	{
-		memcpy(randomArry, gyroZ, DATA_SIZE_4);
+		memcpy(randomArry + arryPos, gyroZ, DATA_SIZE_4);
 		arryPos += DATA_SIZE_4;
 	}
 	else
@@ -214,21 +248,27 @@ void fullFillRandomArry(double minEnthropy)
 	}
 }
 
-void getRandomData(uint8_t *buffer, uint16_t size)
+ClientData getRandomData(uint16_t requestedSize, double minEnthropy = 7.0)//return pointer to struct: [double enthropy, uint8_t* randomData]
 {
-	double minEnthropy = 7.0;
 	if (minEnthropy > currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
-	memcpy(buffer, randomArry, size * sizeof(uint8_t));
+
+	uint8_t* randomArryClient = popRandomArry(requestedSize);
+	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
+	ClientData clientData{ enthropy, randomArryClient };
+	return clientData;
 }
 
-void getRandomData2(uint8_t *buffer, uint16_t size, double minEnthropy)
+ClientData getRandomData2(uint16_t requestedSize, double minEnthropy)
 {
 	if (minEnthropy > currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
-	memcpy(buffer, randomArry, size * sizeof(uint8_t));
+	uint8_t* randomArryClient = popRandomArry(requestedSize);
+	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
+	ClientData clientData{ enthropy, randomArryClient };
+	return clientData;
 }
