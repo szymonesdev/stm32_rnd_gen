@@ -248,25 +248,13 @@ void fullFillRandomArry(double minEnthropy)
 	}
 }
 
-ClientData getRandomData(uint16_t requestedSize, double minEnthropy = 7.0)//return pointer to struct: [double enthropy, uint8_t* randomData]
+ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return pointer to struct: [double enthropy, uint8_t* randomData]
 {
 	if (minEnthropy > currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
 
-	uint8_t* randomArryClient = popRandomArry(requestedSize);
-	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
-	ClientData clientData{ enthropy, randomArryClient };
-	return clientData;
-}
-
-ClientData getRandomData2(uint16_t requestedSize, double minEnthropy)
-{
-	if (minEnthropy > currentEnthropy)
-	{
-		fullFillRandomArry(minEnthropy);
-	}
 	uint8_t* randomArryClient = popRandomArry(requestedSize);
 	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
 	ClientData clientData{ enthropy, randomArryClient };

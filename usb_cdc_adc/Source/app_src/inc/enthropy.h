@@ -9,7 +9,6 @@ typedef struct {
 	uint8_t* randomData;
 }ClientData;
 
-void getRandomData(uint8_t *buffer, uint16_t size);
-void getRandomData2(uint8_t *buffer, uint16_t size, double minEnthropy);
+ClientData getRandomData( uint16_t requestedSize, double minEnthropy);
 	
 #endif
