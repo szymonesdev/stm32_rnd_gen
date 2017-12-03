@@ -3,7 +3,9 @@
 #include "enthropy.h"
 #include <math.h>
 #include <cstdint>
+#include <string.h>
 
+static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
 
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
@@ -257,6 +259,8 @@ ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return po
 
 	uint8_t* randomArryClient = popRandomArry(requestedSize);
 	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
-	ClientData clientData{ enthropy, randomArryClient };
+	ClientData clientData;
+	clientData.enthropy = enthropy;
+	clientData.randomData = randomArryClient;
 	return clientData;
 }

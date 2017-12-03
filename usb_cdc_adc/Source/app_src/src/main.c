@@ -50,12 +50,10 @@ int main(){
 	L3GD20_XYZ_data_t xyz_data;
 	uint16_t termval;
 	
-	const uint16_t BYTECNT = 50;
-	uint8_t buff[BYTECNT];
-	
 	//LED_On(LED_GREEN);
 	
-	getRandomData2(buff, BYTECNT, 1.0);
+	const uint16_t BYTECNT = 50;
+	ClientData cdata = getRandomData(BYTECNT, 1.0);
 	
 	while(1){
 
@@ -89,8 +87,8 @@ int main(){
 //		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
 		HAL_Delay(1000);
-		getRandomData2(buff, BYTECNT, 0.0);
-		CDC_Transmit_HS( buff, BYTECNT );
+		cdata = getRandomData(BYTECNT, 0.0);
+		CDC_Transmit_HS( cdata.randomData, BYTECNT );
 		
 	}
 	

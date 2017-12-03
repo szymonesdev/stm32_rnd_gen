@@ -7,7 +7,7 @@
 typedef struct {
 	double enthropy;
 	uint8_t* randomData;
-}ClientData;
+} ClientData;
 
 ClientData getRandomData( uint16_t requestedSize, double minEnthropy);
 	
