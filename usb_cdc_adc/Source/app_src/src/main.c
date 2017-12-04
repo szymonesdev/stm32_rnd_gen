@@ -56,7 +56,7 @@ int main(){
 	
 	//LED_On(LED_GREEN);
 	
-	const uint16_t BYTECNT = 50;
+	const uint16_t BYTECNT = 550;
 	ClientData cdata = getRandomData(BYTECNT, 1.0);
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	

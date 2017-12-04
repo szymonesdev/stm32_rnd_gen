@@ -23,8 +23,8 @@ uint8_t gyroY[DATA_SIZE_4 * u8Bits];
 uint8_t gyroZ[DATA_SIZE_4 * u8Bits];
 uint8_t* gyroData;
 
-uint8_t tempBits = 4;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
-uint8_t gyroBits = 4;
+uint8_t tempBits = 2;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
+uint8_t gyroBits = 2;
 
 int const randArrySize = DATA_SIZE * 2;
 uint8_t randomArry[randArrySize];// 2 prevent unallowed memory access
@@ -137,6 +137,7 @@ static void fullFillTemporaryArrys()
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits / tempBits; ++i)
 	{
 		temp[i] = getLSB(getTempByte(), tempBits);
+		HAL_Delay(GYRO_MEASUREMENT_DELAY_MS);
 	}
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits / gyroBits; ++i)
 	{
@@ -155,7 +156,8 @@ static void concatenateTemporaryArrys()
 	{
 		for (int j = 1; j < u8Bits / tempBits; ++j)
 		{
-			temp[pos] += temp[i + j] << tempBits;
+			temp[pos] <<= tempBits;
+			temp[pos] += temp[i + j];
 		}
 		++pos;
 	}
@@ -165,9 +167,12 @@ static void concatenateTemporaryArrys()
 	{
 		for (int j = 1; j < u8Bits / gyroBits; ++j)
 		{
-			gyroX[pos] += gyroX[i + j] << gyroBits;
-			gyroY[pos] += gyroY[i + j] << gyroBits;
-			gyroZ[pos] += gyroZ[i + j] << gyroBits;
+			gyroX[pos] <<= gyroBits;
+			gyroX[pos] += gyroX[i + j];
+			gyroY[pos] <<= gyroBits;
+			gyroY[pos] += gyroY[i + j];
+			gyroZ[pos] <<= gyroBits;
+			gyroZ[pos] += gyroZ[i + j];
 		}
 		++pos;
 	}
