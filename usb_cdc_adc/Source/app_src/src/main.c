@@ -1,20 +1,32 @@
+/*
+
+	MAIN
+
+*/
+
+#include <stdio.h>
+
 #include "stm32f4xx_hal.h"
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
-#include <stdio.h>
 
-#include "Board_LED.h"
+//#include "Board_LED.h"
 
 #include "termometer_interface.h"
 #include "L3GD20_interface.h"
+#include "enthropy.h"
 
-static const uint32_t LED_GREEN = 0;
-static const uint32_t LED_RED = 1;
+//static const uint32_t LED_GREEN = 0;
+//static const uint32_t LED_RED = 1;
 
 static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
+char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bits to be generated: ";
+char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bits to be generated:";
+static uint32_t INPUT_NUM;
+static int pos;
 
 char NL[2]= {'\n', '\r'};
 volatile char TX_DATA[256];
@@ -27,35 +39,28 @@ int main(){
 		Initialize start
 	*/
 	HAL_Init();
-    SystemClock_Config();
+   SystemClock_Config();
 	MX_GPIO_Init();
-    MX_USB_DEVICE_Init();
+   MX_USB_DEVICE_Init();
 
 	Termometer_initialize();
 	L3GD20_initialize();
 	
-	LED_Initialize();
+	//LED_Initialize();
 	/*
 		Initialize stop
 	*/
 	
-	const char *helloStr = "Hello\r\n";
-	CDC_Transmit_HS( (uint8_t*)helloStr, len );
-	
 	L3GD20_XYZ_data_t xyz_data;
 	uint16_t termval;
 	
-	LED_On(LED_GREEN);
+	//LED_On(LED_GREEN);
+	
+	const uint16_t BYTECNT = 550;
+	ClientData cdata = getRandomData(BYTECNT, 1.0);
+	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	
 	while(1){
-		
-		volatile int x = 0;
-		const uint16_t OUTER_DELAY = 100;
-		const uint16_t INNER_DELAY = 10000;
-		for (int i = 0; i< OUTER_DELAY; ++i){
-			for (int j = 0; j<INNER_DELAY; ++j)
-				x += 1;
-		}
 
 		/*
 			#TODO usunac ta notatke
@@ -74,26 +79,61 @@ int main(){
 				b =<< 2;
 				b |= nowe_dane & 0x03;
 		*/
-		L3GD20_readXYZ(&xyz_data);
-		termval = Termometer_getADCReading();
+//		HAL_Delay(2);
+//		L3GD20_readXYZ(&xyz_data);
+//		termval = Termometer_getADCReading();
+//		len = sprintf(TX_DATA, 
+//			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
+//			termval,
+//			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
+//			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
+//			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
+//		);
+//		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
+		HAL_Delay(1000);
+		cdata = getRandomData(BYTECNT, 0.0);
+		CDC_Transmit_HS( cdata.randomData, BYTECNT );
 		
-		len = sprintf(TX_DATA, 
-			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
-			termval,
-			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
-			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
-			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
-		);
-		
-		
-		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 	}
 	
 	return 0;
 }
 
- static void MX_GPIO_Init(void)
+static uint32_t pow10(uint32_t pow){
+	uint32_t res= 1;
+	
+	for(int i= 0; i < pow; i++)
+	  res*= 10;
+	
+	return res;
+}
+
+void rgen_userInput(uint8_t* buf, uint32_t *len)
+{
+	if( pos < 4 ){
+		if( buf[0] == '\n' || buf[0] == '\r'){
+			if( INPUT_NUM < 4097 ){
+			  CDC_Transmit_HS( (uint8_t *)NL, 2 );
+			  ClientData cdata = getRandomData(INPUT_NUM, 1.0);
+			}
+			else
+				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+			INPUT_NUM= 0;
+			pos= 0;
+	  }else if( ( buf[0] >= '0' ) && ( buf[0] <= '9' ) ){
+	    INPUT_NUM+= ( ( (char)buf[0] - '0' ) * pow10( pos++ ) );
+			CDC_Transmit_HS( buf, 1 );
+	  }
+	}
+	else{
+		pos= 0;
+		INPUT_NUM= 0;
+		CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+	}
+}
+
+static void MX_GPIO_Init(void)
 {
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();

@@ -29,22 +29,11 @@ uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
   return result;
 }
 
+extern void rgen_userInput(uint8_t* buf, uint32_t *len);
+
 static int8_t CDC_Receive_HS (uint8_t* Buf, uint32_t *Len)
 {
-	//uint32_t a = *Len;
-	
-	//if( i ){
-		//if( i == 1 ){
-			//disp_putChar(Buf[0]);
-			//i--;
-		//}
-		//else{
-			//for( int b= 0; b < i; b++)
-				//disp_putChar(Buf[b]);
-			
-			//i= 0;
-		//}
-	//}
+  rgen_userInput( Buf, Len );
 
   /* USER CODE BEGIN 11 */ 
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
