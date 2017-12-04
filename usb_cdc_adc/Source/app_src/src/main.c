@@ -54,6 +54,7 @@ int main(){
 	
 	const uint16_t BYTECNT = 50;
 	ClientData cdata = getRandomData(BYTECNT, 1.0);
+	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	
 	while(1){
 
@@ -93,6 +94,39 @@ int main(){
 	}
 	
 	return 0;
+}
+
+static uint32_t pow10(uint32_t pow){
+	uint32_t res= 1;
+	
+	for(int i= 0; i < pow; i++)
+	  res*= 10;
+	
+	return res;
+}
+
+void rgen_userInput(uint8_t* buf, uint32_t *len)
+{
+	if( pos < 4 ){
+		if( buf[0] == '\n' || buf[0] == '\r'){
+			if( INPUT_NUM < 4097 ){
+			  CDC_Transmit_HS( (uint8_t *)NL, 2 );
+			  ClientData cdata = getRandomData(INPUT_NUM, 1.0);
+			}
+			else
+				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+			INPUT_NUM= 0;
+			pos= 0;
+	  }else if( ( buf[0] >= '0' ) && ( buf[0] <= '9' ) ){
+	    INPUT_NUM+= ( ( (char)buf[0] - '0' ) * pow10( pos++ ) );
+			CDC_Transmit_HS( buf, 1 );
+	  }
+	}
+	else{
+		pos= 0;
+		INPUT_NUM= 0;
+		CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+	}
 }
 
 static void MX_GPIO_Init(void)
