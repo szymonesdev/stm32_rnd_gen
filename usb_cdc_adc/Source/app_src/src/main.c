@@ -23,6 +23,10 @@ static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
+char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bits to be generated: ";
+char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bits to be generated:";
+static uint32_t INPUT_NUM;
+static int pos;
 
 char NL[2]= {'\n', '\r'};
 volatile char TX_DATA[256];
