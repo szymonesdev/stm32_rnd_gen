@@ -25,8 +25,9 @@ uint8_t* gyroData;
 
 uint8_t validBits = 2;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
 
-int const randArrySize = DATA_SIZE * 2;
-uint8_t randomArry[randArrySize];// 2 prevent unallowed memory access
+int const maximumRequest = DATA_SIZE;
+int const randArrySize = DATA_SIZE + maximumRequest;// maximumRequest prevent unallowed memory access (requestPushIf function)
+uint8_t randomArry[randArrySize];
 int arryPos = 0; // mark: index, all lower indexes are random valid
 
 static uint8_t getLSB(uint16_t number, uint8_t digits)
@@ -133,7 +134,21 @@ static double calcEnthropy(uint8_t* data, uint16_t requestedSize, double(*addend
 
 static void fullFillTemporaryArrys()
 {
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits / validBits; ++i)
+	for (int i = 0; i < DATA_SIZE_4 * (int)(u8Bits / (float)validBits+0.99f); ++i)
+	{
+		temp[i] = getLSB(getTempByte(), validBits);
+		
+		gyroData = getgyroThreeByte();
+		gyroX[i] = getLSB(gyroData[0], validBits);
+		gyroY[i] = getLSB(gyroData[1], validBits);
+		gyroZ[i] = getLSB(gyroData[2], validBits);
+		HAL_Delay(GYRO_MEASUREMENT_DELAY_MS);
+	}
+}
+
+static void requestFillTemporaryArrys(uint16_t requestedSize)
+{
+	for (int i = 0; i < requestedSize * (int)(u8Bits / (float)validBits+0.99f); ++i)
 	{
 		temp[i] = getLSB(getTempByte(), validBits);
 		
@@ -148,9 +163,29 @@ static void fullFillTemporaryArrys()
 static void concatenateTemporaryArrys()
 {
 	int pos = 0;
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / validBits)
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += (int)(u8Bits / (float)validBits+0.99f))
 	{
-		for (int j = 1; j < u8Bits / validBits; ++j)
+		for (int j = 1; j < (int)(u8Bits / (float)validBits+0.99f); ++j)
+		{
+			temp[pos] <<= validBits;
+			temp[pos] += temp[i + j];	
+			gyroX[pos] <<= validBits;
+			gyroX[pos] += gyroX[i + j];
+			gyroY[pos] <<= validBits;
+			gyroY[pos] += gyroY[i + j];
+			gyroZ[pos] <<= validBits;
+			gyroZ[pos] += gyroZ[i + j];
+		}
+		++pos;
+	}
+}
+
+static void requestConcatenateTemporaryArrys(uint16_t requestedSize)
+{
+	int pos = 0;
+	for (int i = 0; i < requestedSize * u8Bits; i += (int)(u8Bits / (float)validBits+0.99f))
+	{
+		for (int j = 1; j < (int)(u8Bits / (float)validBits+0.99f); ++j)
 		{
 			temp[pos] <<= validBits;
 			temp[pos] += temp[i + j];	
@@ -221,6 +256,62 @@ static void pushIf(double minEnthropy)
 	}
 }
 
+static void requestPushIf(uint16_t requestedSize, double minEnthropy)
+{
+	double eTemp = calcEnthropy(temp, requestedSize, getAddendPrInside);
+	double eGyroX = calcEnthropy(gyroX, requestedSize, getAddendPrInside);
+	double eGyroY = calcEnthropy(gyroY, requestedSize, getAddendPrInside);
+	double eGyroZ = calcEnthropy(gyroZ, requestedSize, getAddendPrInside);
+
+	uint8_t tmpValidBits = validBits;//several /2
+
+	if (eTemp >= minEnthropy && (DATA_SIZE - arryPos >= 0))//second prevent memory access violation
+	{
+		memcpy(randomArry, temp, requestedSize);
+		arryPos += requestedSize;
+	}
+	else
+	{
+		tmpValidBits /= 2;
+	}
+
+	if (eGyroX >= minEnthropy && (DATA_SIZE - arryPos >= 0))
+	{
+		memcpy(randomArry + arryPos, gyroX, requestedSize);
+		arryPos += requestedSize;
+	}
+	else
+	{
+		tmpValidBits  /= 2;
+	}
+
+	if (eGyroY >= minEnthropy && (DATA_SIZE - arryPos >= 0))
+	{
+		memcpy(randomArry + arryPos, gyroY, requestedSize);
+		arryPos += requestedSize;
+	}
+	else
+	{
+		tmpValidBits  /= 2;
+	}
+
+	if (eGyroZ >= minEnthropy && (DATA_SIZE - arryPos >= 0))
+	{
+		memcpy(randomArry + arryPos, gyroZ, requestedSize);
+		arryPos += requestedSize;
+	}
+	else
+	{
+		tmpValidBits  /= 2;
+	}
+
+	validBits = (validBits == tmpValidBits)  ? validBits : validBits / 2;
+	if (validBits == 0)
+	{
+		validBits = 1;
+	}
+}
+
 void fullFillRandomArry(double minEnthropy)
 {
 	static int counter = 0;//recursion number, stack overflow
@@ -239,6 +330,27 @@ void fullFillRandomArry(double minEnthropy)
 			minEnthropy -= (maxEnthropy - minEnthropy);
 		minEnthropy = (minEnthropy > 0) ? (minEnthropy) : 0;
 		fullFillRandomArry(minEnthropy);
+	}
+}
+
+void requestFillRandomArry(uint16_t requestedSize, double minEnthropy)
+{
+	static int counter = 0;//recursion number, stack overflow
+	++counter;
+
+	requestFillTemporaryArrys(requestedSize);
+	requestConcatenateTemporaryArrys(requestedSize);
+
+	requestPushIf(requestedSize, minEnthropy);
+
+	if (arryPos >= DATA_SIZE)
+		return;
+	else
+	{
+		if (counter > 10)
+			minEnthropy -= (maxEnthropy - minEnthropy);
+		minEnthropy = (minEnthropy > 0) ? (minEnthropy) : 0;
+		requestFillRandomArry(requestedSize, minEnthropy);
 	}
 }
 
