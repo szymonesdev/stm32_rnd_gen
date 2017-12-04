@@ -23,8 +23,7 @@ uint8_t gyroY[DATA_SIZE_4 * u8Bits];
 uint8_t gyroZ[DATA_SIZE_4 * u8Bits];
 uint8_t* gyroData;
 
-uint8_t tempBits = 2;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
-uint8_t gyroBits = 2;
+uint8_t validBits = 2;//HAVE TO BE EVEN// valid bits(LSB), expected to satisfy minEnthropy, if no decrease (divide by two)
 
 int const randArrySize = DATA_SIZE * 2;
 uint8_t randomArry[randArrySize];// 2 prevent unallowed memory access
@@ -134,17 +133,14 @@ static double calcEnthropy(uint8_t* data, uint16_t requestedSize, double(*addend
 
 static void fullFillTemporaryArrys()
 {
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits / tempBits; ++i)
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits / validBits; ++i)
 	{
-		temp[i] = getLSB(getTempByte(), tempBits);
-		HAL_Delay(GYRO_MEASUREMENT_DELAY_MS);
-	}
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits / gyroBits; ++i)
-	{
+		temp[i] = getLSB(getTempByte(), validBits);
+		
 		gyroData = getgyroThreeByte();
-		gyroX[i] = getLSB(gyroData[0], gyroBits);
-		gyroY[i] = getLSB(gyroData[1], gyroBits);
-		gyroZ[i] = getLSB(gyroData[2], gyroBits);
+		gyroX[i] = getLSB(gyroData[0], validBits);
+		gyroY[i] = getLSB(gyroData[1], validBits);
+		gyroZ[i] = getLSB(gyroData[2], validBits);
 		HAL_Delay(GYRO_MEASUREMENT_DELAY_MS);
 	}
 }
@@ -152,26 +148,17 @@ static void fullFillTemporaryArrys()
 static void concatenateTemporaryArrys()
 {
 	int pos = 0;
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / tempBits)
+	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / validBits)
 	{
-		for (int j = 1; j < u8Bits / tempBits; ++j)
+		for (int j = 1; j < u8Bits / validBits; ++j)
 		{
-			temp[pos] <<= tempBits;
-			temp[pos] += temp[i + j];
-		}
-		++pos;
-	}
-
-	pos = 0;
-	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += u8Bits / gyroBits)
-	{
-		for (int j = 1; j < u8Bits / gyroBits; ++j)
-		{
-			gyroX[pos] <<= gyroBits;
+			temp[pos] <<= validBits;
+			temp[pos] += temp[i + j];	
+			gyroX[pos] <<= validBits;
 			gyroX[pos] += gyroX[i + j];
-			gyroY[pos] <<= gyroBits;
+			gyroY[pos] <<= validBits;
 			gyroY[pos] += gyroY[i + j];
-			gyroZ[pos] <<= gyroBits;
+			gyroZ[pos] <<= validBits;
 			gyroZ[pos] += gyroZ[i + j];
 		}
 		++pos;
@@ -185,7 +172,7 @@ static void pushIf(double minEnthropy)
 	double eGyroY = calcEnthropy(gyroY, DATA_SIZE_4, getAddendPrInside);
 	double eGyroZ = calcEnthropy(gyroZ, DATA_SIZE_4, getAddendPrInside);
 
-	uint8_t tmpGyroBits = gyroBits;//several /2
+	uint8_t tmpValidBits = validBits;//several /2
 
 	if (eTemp >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))//second prevent memory access violation
 	{
@@ -194,7 +181,7 @@ static void pushIf(double minEnthropy)
 	}
 	else
 	{
-		tempBits /= 2;
+		tmpValidBits /= 2;
 	}
 
 	if (eGyroX >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
@@ -204,7 +191,7 @@ static void pushIf(double minEnthropy)
 	}
 	else
 	{
-		tmpGyroBits /= 2;
+		tmpValidBits  /= 2;
 	}
 
 	if (eGyroY >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
@@ -214,7 +201,7 @@ static void pushIf(double minEnthropy)
 	}
 	else
 	{
-		tmpGyroBits /= 2;
+		tmpValidBits  /= 2;
 	}
 
 	if (eGyroZ >= minEnthropy && (DATA_SIZE - arryPos >= DATA_SIZE_4))
@@ -224,13 +211,13 @@ static void pushIf(double minEnthropy)
 	}
 	else
 	{
-		tmpGyroBits /= 2;
+		tmpValidBits  /= 2;
 	}
 
-	gyroBits = gyroBits == tmpGyroBits ? gyroBits : gyroBits / 2;
-	if (gyroBits == 0)
+	validBits = (validBits == tmpValidBits)  ? validBits : validBits / 2;
+	if (validBits == 0)
 	{
-		gyroBits = 1;
+		validBits = 1;
 	}
 }
 
