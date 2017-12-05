@@ -148,7 +148,8 @@ static void fullFillTemporaryArrys()
 
 static void requestFillTemporaryArrys(uint16_t requestedSize)
 {
-	for (int i = 0; i < requestedSize * (int)(u8Bits / (float)validBits+0.99f); ++i)
+	uint16_t debugVal = requestedSize * (uint16_t)(u8Bits / (float)validBits+0.99f) / 4;
+	for (int i = 0; i < requestedSize * (uint16_t)(u8Bits / (float)validBits+0.99f) / 4; ++i)
 	{
 		temp[i] = getLSB(getTempByte(), validBits);
 		
@@ -183,7 +184,7 @@ static void concatenateTemporaryArrys()
 static void requestConcatenateTemporaryArrys(uint16_t requestedSize)
 {
 	int pos = 0;
-	for (int i = 0; i < requestedSize * u8Bits; i += (int)(u8Bits / (float)validBits+0.99f))
+	for (int i = 0; i < requestedSize * (int)(u8Bits / (float)validBits+0.99f) / 4; i += (int)(u8Bits / (float)validBits+0.99f))
 	{
 		for (int j = 1; j < (int)(u8Bits / (float)validBits+0.99f); ++j)
 		{
@@ -358,7 +359,7 @@ ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return po
 {
 	if (minEnthropy >= currentEnthropy)
 	{
-		fullFillRandomArry(minEnthropy);
+		requestFillRandomArry(requestedSize, minEnthropy);
 	}
 
 	uint8_t* randomArryClient = popRandomArry(requestedSize);
