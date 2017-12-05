@@ -265,11 +265,12 @@ static void requestPushIf(uint16_t requestedSize, double minEnthropy)
 	double eGyroZ = calcEnthropy(gyroZ, requestedSize, getAddendPrInside);
 
 	uint8_t tmpValidBits = validBits;//several /2
-
+	uint16_t temporaryArrySize = requestedSize / 4;
+	
 	if (eTemp >= minEnthropy && (DATA_SIZE - arryPos >= 0))//second prevent memory access violation
 	{
-		memcpy(randomArry, temp, requestedSize);
-		arryPos += requestedSize;
+		memcpy(randomArry, temp, temporaryArrySize);
+		arryPos += temporaryArrySize;
 	}
 	else
 	{
@@ -278,8 +279,8 @@ static void requestPushIf(uint16_t requestedSize, double minEnthropy)
 
 	if (eGyroX >= minEnthropy && (DATA_SIZE - arryPos >= 0))
 	{
-		memcpy(randomArry + arryPos, gyroX, requestedSize);
-		arryPos += requestedSize;
+		memcpy(randomArry + arryPos, gyroX, temporaryArrySize);
+		arryPos += temporaryArrySize;
 	}
 	else
 	{
@@ -288,8 +289,8 @@ static void requestPushIf(uint16_t requestedSize, double minEnthropy)
 
 	if (eGyroY >= minEnthropy && (DATA_SIZE - arryPos >= 0))
 	{
-		memcpy(randomArry + arryPos, gyroY, requestedSize);
-		arryPos += requestedSize;
+		memcpy(randomArry + arryPos, gyroY, temporaryArrySize);
+		arryPos += temporaryArrySize;
 	}
 	else
 	{
@@ -298,8 +299,8 @@ static void requestPushIf(uint16_t requestedSize, double minEnthropy)
 
 	if (eGyroZ >= minEnthropy && (DATA_SIZE - arryPos >= 0))
 	{
-		memcpy(randomArry + arryPos, gyroZ, requestedSize);
-		arryPos += requestedSize;
+		memcpy(randomArry + arryPos, gyroZ, temporaryArrySize);
+		arryPos += temporaryArrySize;
 	}
 	else
 	{
