@@ -38,12 +38,19 @@ static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
 volatile char TX_DATA[256];
 volatile uint32_t len;
 
+volatile char RXD[256];
+volatile uint32_t RXD_LEN;
+volatile uint8_t RXD_RD;
+
 ClientData cdata;
 
 static void usbWaitBusy(void){
 	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
-	while (hcdc->TxState != 0){};
+	while (hcdc->TxState != 0){
+		hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
+	};
 }
+void process_input( char* buf, uint32_t len);
 
 int main(){
 
@@ -87,10 +94,15 @@ int main(){
 //			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
 //		);
 //		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+		if(RXD_RD){
+		  process_input(RXD, RXD_LEN);
+			RXD_RD= 0;
+		}
 		
 		if (FLAG_CLIENT_REQUEST) {
 			
 			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
+			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 			
 			if( REQUESTED_BYTES < 4097 && REQUESTED_BYTES ){	
@@ -99,22 +111,22 @@ int main(){
 				char tab1[4];
 	
 				len1= sprintf( tab1, "0x");
+				usbWaitBusy();
 				CDC_Transmit_HS( tab1, len1 );	
-			  usbWaitBusy();
+			  
 				for( int i= 0; i < REQUESTED_BYTES; i++ ){
 				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
-					 CDC_Transmit_HS( tab1, len1 );	
 					 usbWaitBusy();
+					 CDC_Transmit_HS( tab1, len1 );	
 				}
 			}
 			else {
 				usbWaitBusy();
 				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
-				usbWaitBusy();
 			}
+			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-		  usbWaitBusy();
-			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT = 0;
+			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT= RXD_RD = 0;
 		}
 		
 		HAL_Delay(100);
@@ -134,26 +146,41 @@ static uint32_t pow10(uint32_t pow){
 
 void rgen_userInput(uint8_t* buf, uint32_t *len)
 {
-	if (FLAG_CLIENT_REQUEST) return;
+	if(FLAG_CLIENT_REQUEST == 0){
+	  memcpy( RXD, buf, *len);
+	  RXD_LEN= *len;
 	
-  if( CURRENT_DIGIT < MAX_INPUT_DIGITS+1 ){
-		if( buf[0] == '\n' || buf[0] == '\r'){
-				for(int i= 0; i < CURRENT_DIGIT; i++)
-				  REQUESTED_BYTES+= ( INPUT_DIGIT[ CURRENT_DIGIT -1 - i ] * pow10( i ) );
-			  if( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 )
-			    FLAG_CLIENT_REQUEST = 1;
-			  else{
-				  CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
-				}
-	  }else if( ( buf[0] >= '0' ) && ( buf[0] <= '9' ) ){
-	    INPUT_DIGIT[ CURRENT_DIGIT++ ]= ( (char)buf[0] - '0' );
-			CDC_Transmit_HS( buf, 1 );
-	  }
+	  RXD_RD= 1;
 	}
-	else{
-		CURRENT_DIGIT= 0;
-		REQUESTED_BYTES= 0;
-		CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+}
+
+void process_input( char* buf, uint32_t len){
+	
+	for(int j= 0; j < len; j++){
+		if( CURRENT_DIGIT < MAX_INPUT_DIGITS+1 ){
+			if( buf[j] == '\n' || buf[j] == '\r'){
+					for(int i= 0; i < CURRENT_DIGIT; i++)
+						REQUESTED_BYTES+= ( INPUT_DIGIT[ CURRENT_DIGIT -1 - i ] * pow10( i ) );
+					if( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 )
+						FLAG_CLIENT_REQUEST = 1;
+					else{
+						usbWaitBusy();
+						CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );
+					  return;
+					}
+			}else if( ( buf[j] >= '0' ) && ( buf[j] <= '9' ) ){
+				INPUT_DIGIT[ CURRENT_DIGIT++ ]= ( (char)buf[j] - '0' );
+				usbWaitBusy();
+				CDC_Transmit_HS( (uint8_t *)&buf[j], 1 );
+			}
+		}
+		else{
+			CURRENT_DIGIT= 0;
+			REQUESTED_BYTES= 0;
+			usbWaitBusy();
+			CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );
+			return;
+		}
 	}
 }
 
