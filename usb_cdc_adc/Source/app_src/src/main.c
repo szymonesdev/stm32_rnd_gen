@@ -26,8 +26,8 @@ static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
-char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated: ";
-char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:";
+char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
+char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
 char BUFF_INERR[]= "\n\rInput error";
 char NL[2]= {'\n', '\r'};
 char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
@@ -42,7 +42,7 @@ ClientData cdata;
 
 static void usbWaitBusy(void){
 	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
-	while (hcdc->TxState != 0);
+	while (hcdc->TxState != 0){};
 }
 
 int main(){
@@ -51,9 +51,9 @@ int main(){
 		Initialize start
 	*/
 	HAL_Init();
-   SystemClock_Config();
+  SystemClock_Config();
 	MX_GPIO_Init();
-   MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_Init();
 
 	Termometer_initialize();
 	L3GD20_initialize();
@@ -69,9 +69,10 @@ int main(){
 	//LED_On(LED_GREEN);
 	
 	const uint16_t BYTECNT = 550;
-	cdata = getRandomData(BYTECNT, 0.0);
+	//cdata = getRandomData(BYTECNT, 0.0);
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+	//usbWaitBusy();
 	
 	while(1){
 
@@ -87,38 +88,36 @@ int main(){
 //		);
 //		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
-		HAL_Delay(200);
-		
 		if (FLAG_CLIENT_REQUEST) {
 			
 			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
 			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 			
-			if( REQUESTED_BYTES < 4097 ){	
+			if( REQUESTED_BYTES < 4097 && REQUESTED_BYTES ){	
 				cdata = getRandomData(REQUESTED_BYTES, 0.0);
 				int len1;
 				char tab1[4];
 	
+				len1= sprintf( tab1, "0x");
+				CDC_Transmit_HS( tab1, len1 );	
+			  usbWaitBusy();
 				for( int i= 0; i < REQUESTED_BYTES; i++ ){
-				   len1= sprintf( tab1, "%d", cdata.randomData[i] );
+				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
+					 CDC_Transmit_HS( tab1, len1 );	
 					 usbWaitBusy();
-					 CDC_Transmit_HS( cdata.randomData, len1 );	
 				}
-
-				CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-				usbWaitBusy();
 			}
 			else {
 				usbWaitBusy();
 				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
 				usbWaitBusy();
-
 			}
-			
+			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+		  usbWaitBusy();
 			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT = 0;
 		}
 		
-		
+		HAL_Delay(100);
 	}
 	
 	return 0;
@@ -139,13 +138,13 @@ void rgen_userInput(uint8_t* buf, uint32_t *len)
 	
   if( CURRENT_DIGIT < MAX_INPUT_DIGITS+1 ){
 		if( buf[0] == '\n' || buf[0] == '\r'){
-			  CDC_Transmit_HS( (uint8_t *)NL, 2 );
 				for(int i= 0; i < CURRENT_DIGIT; i++)
 				  REQUESTED_BYTES+= ( INPUT_DIGIT[ CURRENT_DIGIT -1 - i ] * pow10( i ) );
 			  if( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 )
 			    FLAG_CLIENT_REQUEST = 1;
-			  else
+			  else{
 				  CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+				}
 	  }else if( ( buf[0] >= '0' ) && ( buf[0] <= '9' ) ){
 	    INPUT_DIGIT[ CURRENT_DIGIT++ ]= ( (char)buf[0] - '0' );
 			CDC_Transmit_HS( buf, 1 );
