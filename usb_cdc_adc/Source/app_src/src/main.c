@@ -19,19 +19,31 @@
 //static const uint32_t LED_GREEN = 0;
 //static const uint32_t LED_RED = 1;
 
+#define MAX_INPUT_DIGITS 3
+#define MAX_INPUT_NUMBER 512
+
 static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
-char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bits to be generated: ";
-char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bits to be generated:";
-static uint32_t INPUT_NUM;
-static int pos;
-
+char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated: ";
+char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:";
+char BUFF_INERR[]= "\n\rInput error";
 char NL[2]= {'\n', '\r'};
+char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
+
+static uint8_t FLAG_CLIENT_REQUEST = 0;
+static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
+
 volatile char TX_DATA[256];
 volatile uint32_t len;
 
+ClientData cdata;
+
+static void usbWaitBusy(void){
+	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
+	while (hcdc->TxState != 0);
+}
 
 int main(){
 
@@ -57,28 +69,12 @@ int main(){
 	//LED_On(LED_GREEN);
 	
 	const uint16_t BYTECNT = 550;
-	ClientData cdata = getRandomData(BYTECNT, 1.0);
+	cdata = getRandomData(BYTECNT, 0.0);
+	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	
 	while(1){
 
-		/*
-			#TODO usunac ta notatke
-			Te funkcje pobieraja dane odpowiednio z zyroskopu i termometru
-			Skladamy wyjsciowe bajty z 4 kolejnych pomiarow, po 2 bity z kazdego
-			dla termometru / 3 osi zyroskopu osobno. 
-			Z zyroskopu mozna czytac z max czest. ~750Hz
-			
-			Trzeba w glownej petli programu napisac jakies taktowanie pomiarow,
-			nie pisalem bo duzo zalezy od tego, jak bedzie wygladac 
-			czesc kodu liczaca entropie i wystawiajaca bajty dla usera
-		
-			Przyklad skladania
-			uint8_t b = 0x00 | nowe_dane & 0x03; // dane z 1 pomiaru
-			petla : 3 pomiary
-				b =<< 2;
-				b |= nowe_dane & 0x03;
-		*/
 //		HAL_Delay(2);
 //		L3GD20_readXYZ(&xyz_data);
 //		termval = Termometer_getADCReading();
@@ -91,9 +87,37 @@ int main(){
 //		);
 //		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 		
-		HAL_Delay(1000);
-		cdata = getRandomData(BYTECNT, 0.0);
-		CDC_Transmit_HS( cdata.randomData, BYTECNT );
+		HAL_Delay(200);
+		
+		if (FLAG_CLIENT_REQUEST) {
+			
+			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
+			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+			
+			if( REQUESTED_BYTES < 4097 ){	
+				cdata = getRandomData(REQUESTED_BYTES, 0.0);
+				int len1;
+				char tab1[4];
+	
+				for( int i= 0; i < REQUESTED_BYTES; i++ ){
+				   len1= sprintf( tab1, "%d", cdata.randomData[i] );
+					 usbWaitBusy();
+					 CDC_Transmit_HS( cdata.randomData, len1 );	
+				}
+
+				CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+				usbWaitBusy();
+			}
+			else {
+				usbWaitBusy();
+				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
+				usbWaitBusy();
+
+			}
+			
+			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT = 0;
+		}
+		
 		
 	}
 	
@@ -111,24 +135,25 @@ static uint32_t pow10(uint32_t pow){
 
 void rgen_userInput(uint8_t* buf, uint32_t *len)
 {
-	if( pos < 4 ){
+	if (FLAG_CLIENT_REQUEST) return;
+	
+  if( CURRENT_DIGIT < MAX_INPUT_DIGITS+1 ){
 		if( buf[0] == '\n' || buf[0] == '\r'){
-			if( INPUT_NUM < 4097 ){
 			  CDC_Transmit_HS( (uint8_t *)NL, 2 );
-			  ClientData cdata = getRandomData(INPUT_NUM, 1.0);
-			}
-			else
-				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
-			INPUT_NUM= 0;
-			pos= 0;
+				for(int i= 0; i < CURRENT_DIGIT; i++)
+				  REQUESTED_BYTES+= ( INPUT_DIGIT[ CURRENT_DIGIT -1 - i ] * pow10( i ) );
+			  if( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 )
+			    FLAG_CLIENT_REQUEST = 1;
+			  else
+				  CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
 	  }else if( ( buf[0] >= '0' ) && ( buf[0] <= '9' ) ){
-	    INPUT_NUM+= ( ( (char)buf[0] - '0' ) * pow10( pos++ ) );
+	    INPUT_DIGIT[ CURRENT_DIGIT++ ]= ( (char)buf[0] - '0' );
 			CDC_Transmit_HS( buf, 1 );
 	  }
 	}
 	else{
-		pos= 0;
-		INPUT_NUM= 0;
+		CURRENT_DIGIT= 0;
+		REQUESTED_BYTES= 0;
 		CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
 	}
 }
