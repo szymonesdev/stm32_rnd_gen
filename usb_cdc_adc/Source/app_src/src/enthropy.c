@@ -356,7 +356,7 @@ void requestFillRandomArry(uint16_t requestedSize, double minEnthropy)
 
 ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return pointer to struct: [double enthropy, uint8_t* randomData]
 {
-	if (minEnthropy > currentEnthropy)
+	if (minEnthropy >= currentEnthropy)
 	{
 		fullFillRandomArry(minEnthropy);
 	}
