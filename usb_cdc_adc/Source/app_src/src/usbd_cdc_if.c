@@ -77,7 +77,7 @@ static int8_t CDC_Init_HS(void)
 { 
   /* USER CODE BEGIN 8 */ 
   /* Set Application Buffers */
-  USBD_CDC_SetTxBuffer(&hUsbDeviceHS, UserTxBufferHS, 64);
+  USBD_CDC_SetTxBuffer(&hUsbDeviceHS, UserTxBufferHS, 0);
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, UserRxBufferHS);
   return (USBD_OK);
   /* USER CODE END 8 */ 

@@ -16,47 +16,31 @@
 #include "L3GD20_interface.h"
 #include "enthropy.h"
 
-//static const uint32_t LED_GREEN = 0;
-//static const uint32_t LED_RED = 1;
-
 #define MAX_INPUT_DIGITS 3
 #define MAX_INPUT_NUMBER 512
+
+char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
+char BUFF_ERR[]= "\n\rInput error, numbers up to MAX_INPUT_NUMBER are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
+char BUFF_INERR[]= "\n\rInput error";
+char NL[2]= {'\n', '\r'};
+char INPUT_DIGIT[ MAX_INPUT_DIGITS+1 ];
+
+static volatile uint8_t FLAG_CLIENT_REQ;
+static volatile uint8_t FLAG_RXD_RD;
+static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
+
+static volatile char TXD[256];
+static volatile char RXD[256];
+static volatile uint32_t RXD_LEN;
+
+void rgen_processIn( char* buf, uint32_t len);
+void rgen_processOut();
 
 static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
-char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
-char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
-char BUFF_INERR[]= "\n\rInput error";
-char NL[2]= {'\n', '\r'};
-char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
-
-static uint8_t FLAG_CLIENT_REQUEST = 0;
-static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
-
-volatile char TX_DATA[256];
-volatile uint32_t len;
-
-volatile char RXD[256];
-volatile uint32_t RXD_LEN;
-volatile uint8_t RXD_RD;
-
-ClientData cdata;
-
-static void usbWaitBusy(void){
-	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
-	while (hcdc->TxState != 0){
-		hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
-	};
-}
-void process_input( char* buf, uint32_t len);
-
 int main(){
-
-	/*
-		Initialize start
-	*/
 	HAL_Init();
   SystemClock_Config();
 	MX_GPIO_Init();
@@ -65,74 +49,27 @@ int main(){
 	Termometer_initialize();
 	L3GD20_initialize();
 	
-	//LED_Initialize();
-	/*
-		Initialize stop
-	*/
-	
-	L3GD20_XYZ_data_t xyz_data;
-	uint16_t termval;
-	
-	//LED_On(LED_GREEN);
-	
-	const uint16_t BYTECNT = 550;
-	//cdata = getRandomData(BYTECNT, 0.0);
-	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-	//usbWaitBusy();
 	
 	while(1){
 
-//		HAL_Delay(2);
-//		L3GD20_readXYZ(&xyz_data);
-//		termval = Termometer_getADCReading();
-//		len = sprintf(TX_DATA, 
-//			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
-//			termval,
-//			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
-//			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
-//			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
-//		);
-//		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
-		if(RXD_RD){
-		  process_input(RXD, RXD_LEN);
-			RXD_RD= 0;
+		if( FLAG_RXD_RD ){
+		  rgen_processIn( RXD, RXD_LEN);
+			FLAG_RXD_RD= 0;
 		}
 		
-		if (FLAG_CLIENT_REQUEST) {
-			
-			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
-			usbWaitBusy();
-			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
-			
-			if( REQUESTED_BYTES < 4097 && REQUESTED_BYTES ){	
-				cdata = getRandomData(REQUESTED_BYTES, 0.0);
-				int len1;
-				char tab1[4];
-	
-				len1= sprintf( tab1, "0x");
-				usbWaitBusy();
-				CDC_Transmit_HS( tab1, len1 );	
-			  
-				for( int i= 0; i < REQUESTED_BYTES; i++ ){
-				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
-					 usbWaitBusy();
-					 CDC_Transmit_HS( tab1, len1 );	
-				}
-			}
-			else {
-				usbWaitBusy();
-				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
-			}
-			usbWaitBusy();
-			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT= RXD_RD = 0;
+		if( FLAG_CLIENT_REQ ){
+			rgen_processOut();
+			FLAG_CLIENT_REQ= 0;
 		}
-		
-		HAL_Delay(100);
 	}
 	
 	return 0;
+}
+
+static void usbWaitBusy(void){
+	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
+	while (hcdc->TxState != 0){};
 }
 
 static uint32_t pow10(uint32_t pow){
@@ -146,43 +83,70 @@ static uint32_t pow10(uint32_t pow){
 
 void rgen_userInput(uint8_t* buf, uint32_t *len)
 {
-	if(FLAG_CLIENT_REQUEST == 0){
-	  memcpy( RXD, buf, *len);
+	if( ( FLAG_CLIENT_REQ == 0 ) && ( FLAG_RXD_RD == 0 ) ){
+	  memcpy( (void*)RXD, buf, *len);
 	  RXD_LEN= *len;
 	
-	  RXD_RD= 1;
+	  FLAG_RXD_RD= 1;
 	}
 }
 
-void process_input( char* buf, uint32_t len){
+void rgen_processIn( char* buf, uint32_t len){
 	
 	for(int j= 0; j < len; j++){
+		
 		if( CURRENT_DIGIT < MAX_INPUT_DIGITS+1 ){
 			if( buf[j] == '\n' || buf[j] == '\r'){
+				
 					for(int i= 0; i < CURRENT_DIGIT; i++)
 						REQUESTED_BYTES+= ( INPUT_DIGIT[ CURRENT_DIGIT -1 - i ] * pow10( i ) );
-					if( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 )
-						FLAG_CLIENT_REQUEST = 1;
-					else{
-						usbWaitBusy();
-						CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );
-					  return;
-					}
+				
+					if( ( REQUESTED_BYTES < MAX_INPUT_NUMBER+1 ) && ( REQUESTED_BYTES ) )
+						FLAG_CLIENT_REQ = 1;
+					else
+					  goto error;
+
 			}else if( ( buf[j] >= '0' ) && ( buf[j] <= '9' ) ){
 				INPUT_DIGIT[ CURRENT_DIGIT++ ]= ( (char)buf[j] - '0' );
 				usbWaitBusy();
 				CDC_Transmit_HS( (uint8_t *)&buf[j], 1 );
 			}
-		}
-		else{
+		} else{
+error:
 			CURRENT_DIGIT= 0;
 			REQUESTED_BYTES= 0;
 			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );
 			return;
 		}
+		
 	}
 }
+
+void rgen_processOut(){
+		int len;
+	  ClientData cdata;
+	
+	  len = sprintf( TXD, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES );
+		usbWaitBusy();
+		CDC_Transmit_HS( (uint8_t*)TXD, len );
+			
+		cdata = getRandomData( REQUESTED_BYTES, 0.0 );
+		len = sprintf( TXD, "0x");
+		usbWaitBusy();
+		CDC_Transmit_HS( (uint8_t*)TXD, len );	
+			  
+		for( int i= 0; i < REQUESTED_BYTES; i++ ){
+			len = sprintf( TXD, "%02x", cdata.randomData[i] );
+			usbWaitBusy();
+			CDC_Transmit_HS( (uint8_t*)TXD, len );	
+		}
+
+		usbWaitBusy();
+		CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+		REQUESTED_BYTES = CURRENT_DIGIT = 0;
+}
+
 
 static void MX_GPIO_Init(void)
 {
