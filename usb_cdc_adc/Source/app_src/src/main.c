@@ -15,6 +15,7 @@
 #include "termometer_interface.h"
 #include "L3GD20_interface.h"
 #include "enthropy.h"
+#include "block_control.h"
 
 //static const uint32_t LED_GREEN = 0;
 //static const uint32_t LED_RED = 1;
@@ -34,6 +35,7 @@ char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
 
 static uint8_t FLAG_CLIENT_REQUEST = 0;
 static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
+static const uint32_t MAX_REQ_BYTES = 4000;
 
 volatile char TX_DATA[256];
 volatile uint32_t len;
@@ -62,31 +64,24 @@ int main(){
 	/*
 		Initialize stop
 	*/
-	
-	L3GD20_XYZ_data_t xyz_data;
-	uint16_t termval;
+
 	
 	//LED_On(LED_GREEN);
 	
-	const uint16_t BYTECNT = 550;
+	const uint16_t BYTECNT = 200;
+	
 	//cdata = getRandomData(BYTECNT, 0.0);
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	//usbWaitBusy();
 	
+	
+	
 	while(1){
 
-//		HAL_Delay(2);
-//		L3GD20_readXYZ(&xyz_data);
-//		termval = Termometer_getADCReading();
-//		len = sprintf(TX_DATA, 
-//			"MEASURE ADC/X/Y/Z %#06x %#06x %#06x %#06x\n\r", 
-//			termval,
-//			((uint16_t)xyz_data.x_msb << 8) | xyz_data.x_lsb, 
-//			((uint16_t)xyz_data.y_msb << 8) | xyz_data.y_lsb,
-//			((uint16_t)xyz_data.z_msb << 8) | xyz_data.z_lsb
-//		);
-//		CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+		HAL_Delay(1);
+
+		
 		
 		if (FLAG_CLIENT_REQUEST) {
 			
@@ -95,26 +90,32 @@ int main(){
 			
 			if( REQUESTED_BYTES < 4097 && REQUESTED_BYTES ){	
 				cdata = getRandomData(REQUESTED_BYTES, 0.0);
-				int len1;
-				char tab1[4];
-	
-				len1= sprintf( tab1, "0x");
-				CDC_Transmit_HS( tab1, len1 );	
-			  usbWaitBusy();
-				for( int i= 0; i < REQUESTED_BYTES; i++ ){
-				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
-					 CDC_Transmit_HS( tab1, len1 );	
-					 usbWaitBusy();
-				}
+				
+				CDC_Transmit_HS( cdata.randomData, REQUESTED_BYTES );	
+				usbWaitBusy();
+//				int len1;
+//				char tab1[4];
+//	
+//				len1= sprintf( tab1, "0x");
+//				CDC_Transmit_HS( tab1, len1 );	
+//			  usbWaitBusy();
+//				for( int i= 0; i < REQUESTED_BYTES; i++ ){
+//				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
+//					 CDC_Transmit_HS( tab1, len1 );	
+//					 usbWaitBusy();
+//				}
 			}
 			else {
 				usbWaitBusy();
 				CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
 				usbWaitBusy();
 			}
+			
 			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-		  usbWaitBusy();
+		   usbWaitBusy();
 			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT = 0;
+			
+			FLAG_CLIENT_REQUEST = 0;
 		}
 		
 		HAL_Delay(100);
@@ -132,7 +133,9 @@ static uint32_t pow10(uint32_t pow){
 	return res;
 }
 
-void rgen_userInput(uint8_t* buf, uint32_t *len)
+// -----------------------------
+
+void rgen_userInput_Szymon(uint8_t* buf, uint32_t *len)
 {
 	if (FLAG_CLIENT_REQUEST) return;
 	
@@ -155,6 +158,43 @@ void rgen_userInput(uint8_t* buf, uint32_t *len)
 		REQUESTED_BYTES= 0;
 		CDC_Transmit_HS( (uint8_t*)BUFF_ERR, strlen( BUFF_ERR ) );	
 	}
+}
+
+// -----------------------------
+
+void rgen_userInput_Witold(uint8_t* buf, uint32_t *len) 
+{ 
+  const uint32_t MAX_DIGITS = 6; 
+  if (FLAG_CLIENT_REQUEST) return; 
+   
+  REQUESTED_BYTES = 0; 
+  if (*len > MAX_DIGITS) { 
+    CDC_Transmit_HS( (uint8_t*)BUFF_INERR, strlen( BUFF_INERR ) );   
+    return; 
+  } 
+   
+  for (uint8_t i = 0; i != *len; ++i){ 
+     
+    if( ( buf[i] >= '0' ) && ( buf[i] <= '9' ) ){ 
+      REQUESTED_BYTES += ( ( (char)buf[i] - '0' ) * pow10( *len - i - 1 ) ); 
+    } 
+    else { 
+      CDC_Transmit_HS( (uint8_t*)BUFF_INERR, strlen( BUFF_INERR ) );   
+      return; 
+    } 
+     
+  } 
+   
+  FLAG_CLIENT_REQUEST = 1; 
+} 
+ 
+/*
+
+	USB RX IRQ
+
+*/
+void rgen_userInput(uint8_t* buf, uint32_t *len){ 
+  rgen_userInput_Witold(buf, len);  
 }
 
 static void MX_GPIO_Init(void)
