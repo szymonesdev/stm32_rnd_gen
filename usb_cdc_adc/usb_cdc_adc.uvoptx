@@ -152,7 +152,7 @@
           <Type>0</Type>
           <LineNumber>133</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134243040</Address>
+          <Address>134243036</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -168,7 +168,7 @@
           <Type>0</Type>
           <LineNumber>151</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134243502</Address>
+          <Address>134243554</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -178,6 +178,22 @@
           <Filename>.\Source\app_src\src\enthropy.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression>\\usb_cdc_adc\Source/app_src/src/enthropy.c\151</Expression>
+        </Bp>
+        <Bp>
+          <Number>2</Number>
+          <Type>0</Type>
+          <LineNumber>346</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134243386</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>.\Source\app_src\src\enthropy.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\usb_cdc_adc\Source/app_src/src/enthropy.c\346</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -194,7 +210,12 @@
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>gyroX</ItemText>
+          <ItemText>randomArry</ItemText>
+        </Ww>
+        <Ww>
+          <count>3</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>arryPos</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

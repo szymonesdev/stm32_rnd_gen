@@ -345,15 +345,15 @@ void requestFillRandomArry(uint16_t requestedSize, double minEnthropy)
 
 	requestPushIf(requestedSize, minEnthropy);
 
-	if (arryPos >= DATA_SIZE)
+/*	if (arryPos >= DATA_SIZE)
 		return;
 	else
 	{
 		if (counter > 10)
 			minEnthropy -= (maxEnthropy - minEnthropy);
 		minEnthropy = (minEnthropy > 0) ? (minEnthropy) : 0;
-		requestFillRandomArry(requestedSize, minEnthropy);
-	}
+		requestFillRandomArry( DATA_SIZE - arryPos, minEnthropy);
+	}*/
 }
 
 ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return pointer to struct: [double enthropy, uint8_t* randomData]

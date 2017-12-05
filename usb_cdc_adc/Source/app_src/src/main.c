@@ -68,8 +68,8 @@ int main(){
 	
 	//LED_On(LED_GREEN);
 	
-	//uint16_t BYTECNT = 4096;
-	//cdata = getRandomData(BYTECNT, 0.0);
+//	uint16_t BYTECNT = 16;
+//	cdata = getRandomData(BYTECNT, 0.0);
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	//usbWaitBusy();
