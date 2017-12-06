@@ -127,23 +127,23 @@ void rgen_processOut(){
 		CDC_Transmit_HS( (uint8_t*)TXD, len );
 			
 		cdata = getRandomData( REQUESTED_BYTES, 0.0 );
+
+#if	LAB_DEBUG
+		usbWaitBusy();
+		CDC_Transmit_HS( cdata.randomData, REQUESTED_BYTES );
+
+#else
 		len = sprintf( TXD, "0x");
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)TXD, len );	
-			  
-#if	LAB_DEBUG
-		for( int i= 0; i < REQUESTED_BYTES; i++ ){
-			usbWaitBusy();
-			CDC_Transmit_HS( (uint8_t*)cdata.randomData[i], 1 );
-		}
-#else
+		
 		for( int i= 0; i < REQUESTED_BYTES; i++ ){
 			len = sprintf( TXD, "%02x", cdata.randomData[i] );
 			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)TXD, len );	
 		}
 #endif
-
+		
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 		REQUESTED_BYTES = CURRENT_DIGIT = 0;
