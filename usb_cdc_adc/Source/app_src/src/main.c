@@ -131,7 +131,6 @@ void rgen_processOut(){
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)TXD, len );	
 			  
-
 #if	LAB_DEBUG
 		for( int i= 0; i < REQUESTED_BYTES; i++ ){
 			usbWaitBusy();
