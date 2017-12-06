@@ -11,7 +11,9 @@
 #include "enthropy.h"
 
 #define MAX_INPUT_DIGITS 4
-#define MAX_INPUT_NUMBER 4096
+#define MAX_INPUT_NUMBER 8192
+#define ITERATIONS 1280
+#define PACKS 5
 #define LAB_DEBUG	1
 
 char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
@@ -44,10 +46,14 @@ int main(){
 	Termometer_initialize();
 	L3GD20_initialize();
 	
+#if LAB_DEBUG
+	rgen_processOut();
+	while(1){}
+#else
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	
 	while(1){
-
+	
 		if( FLAG_RXD_RD ){
 		  rgen_processIn( RXD, RXD_LEN);
 			FLAG_RXD_RD= 0;
@@ -58,6 +64,7 @@ int main(){
 			FLAG_CLIENT_REQ= 0;
 		}
 	}
+#endif
 	
 	return 0;
 }
@@ -119,20 +126,25 @@ error:
 }
 
 void rgen_processOut(){
-		int len;
-	  ClientData cdata;
+		ClientData cdata;
+
+#if	LAB_DEBUG
+		for( int t= 0; t < PACKS; t++ ){
+			for( int s= 0; s < ITERATIONS; s++){
+				cdata = getRandomData( MAX_INPUT_NUMBER, 0.0 );
+				CDC_Transmit_HS( cdata.randomData, MAX_INPUT_NUMBER );
+				usbWaitBusy();
+			}
+		}
 	
+#else
+		int len;
+	  
 	  len = sprintf( TXD, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES );
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)TXD, len );
 			
 		cdata = getRandomData( REQUESTED_BYTES, 0.0 );
-
-#if	LAB_DEBUG
-		usbWaitBusy();
-		CDC_Transmit_HS( cdata.randomData, REQUESTED_BYTES );
-
-#else
 		len = sprintf( TXD, "0x");
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)TXD, len );	
@@ -142,10 +154,11 @@ void rgen_processOut(){
 			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)TXD, len );	
 		}
-#endif
 		
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+#endif
+		
 		REQUESTED_BYTES = CURRENT_DIGIT = 0;
 }
 

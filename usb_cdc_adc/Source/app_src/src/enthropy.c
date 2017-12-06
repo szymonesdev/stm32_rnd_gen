@@ -7,7 +7,7 @@
 
 static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
 
-int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
+int const DATA_SIZE = 8192;//divisible by 4, max 4096, 4096 for current enthropy_data.h
 int const DATA_SIZE_4 = DATA_SIZE / 4;
 double const maxEnthropy = 8;
 double currentEnthropy = 0;
