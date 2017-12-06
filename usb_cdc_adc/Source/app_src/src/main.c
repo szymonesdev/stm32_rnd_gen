@@ -10,15 +10,10 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
-//#include "Board_LED.h"
-
+#include "block_control.h"
 #include "termometer_interface.h"
 #include "L3GD20_interface.h"
 #include "enthropy.h"
-#include "block_control.h"
-
-//static const uint32_t LED_GREEN = 0;
-//static const uint32_t LED_RED = 1;
 
 #define MAX_INPUT_DIGITS 3
 #define MAX_INPUT_NUMBER 512
@@ -34,18 +29,20 @@ char NL[2]= {'\n', '\r'};
 char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
 
 static uint8_t FLAG_CLIENT_REQUEST = 0;
+
 static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
-static const uint32_t MAX_REQ_BYTES = 4000;
+static const uint32_t MAX_REQ_BYTES = 6000;
 
 volatile char TX_DATA[256];
 volatile uint32_t len;
 
-ClientData cdata;
+BlockCluster_t cluster;
 
 static void usbWaitBusy(void){
 	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
 	while (hcdc->TxState != 0){};
 }
+
 
 int main(){
 
@@ -59,51 +56,40 @@ int main(){
 
 	Termometer_initialize();
 	L3GD20_initialize();
-	
-	//LED_Initialize();
 	/*
 		Initialize stop
 	*/
 
 	
-	//LED_On(LED_GREEN);
 	
-	const uint16_t BYTECNT = 200;
-	
-	//cdata = getRandomData(BYTECNT, 0.0);
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-	//usbWaitBusy();
+	usbWaitBusy();
 	
-	
+	installBlockCluster(&cluster);
 	
 	while(1){
 
-		HAL_Delay(1);
+		HAL_Delay(20);
 
-		
+		refillBLock();
 		
 		if (FLAG_CLIENT_REQUEST) {
 			
 			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
 			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+			usbWaitBusy();
 			
-			if( REQUESTED_BYTES < 4097 && REQUESTED_BYTES ){	
-				cdata = getRandomData(REQUESTED_BYTES, 0.0);
+			if( REQUESTED_BYTES < MAX_REQ_BYTES && REQUESTED_BYTES ){	
+
+				uint8_t *dataPtr;
+			
+				if (refillAndGetBytes(REQUESTED_BYTES, &dataPtr)){
+					CDC_Transmit_HS(dataPtr, REQUESTED_BYTES);
+					usbWaitBusy();			
+					unlockBlocks();
+				}	
 				
-				CDC_Transmit_HS( cdata.randomData, REQUESTED_BYTES );	
-				usbWaitBusy();
-//				int len1;
-//				char tab1[4];
-//	
-//				len1= sprintf( tab1, "0x");
-//				CDC_Transmit_HS( tab1, len1 );	
-//			  usbWaitBusy();
-//				for( int i= 0; i < REQUESTED_BYTES; i++ ){
-//				   len1= sprintf( tab1, "%02x", cdata.randomData[i] );
-//					 CDC_Transmit_HS( tab1, len1 );	
-//					 usbWaitBusy();
-//				}
 			}
 			else {
 				usbWaitBusy();
