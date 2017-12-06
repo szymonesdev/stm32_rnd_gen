@@ -12,6 +12,7 @@
 #define CLUSTER_T_BLOCK_CNT  			100
 #define MAX_DATA_SIZE 					(BLOCK_T_DATA_SIZE * CLUSTER_T_BLOCK_CNT)
 
+
 typedef uint8_t (*dataTransmitCallback_t)(uint8_t*, uint16_t);
 
 enum BlockState_t { BLOCK_READY, BLOCK_USED, BLOCK_LOCKED };

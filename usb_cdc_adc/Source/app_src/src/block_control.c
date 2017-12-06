@@ -135,7 +135,7 @@ uint8_t refillAndGetBytes(uint32_t byteCnt, uint8_t **dataStartPtr) {
 }
 
 uint8_t multiRefillAndGetBytes(uint32_t byteCnt, dataTransmitCallback_t tx){
-	const uint8_t MAX_REPEAT = 10;
+	const uint32_t MAX_REPEAT = 1000;
 	uint8_t *ptr;
 	if (byteCnt > MAX_DATA_SIZE * MAX_REPEAT) return 0;
 	

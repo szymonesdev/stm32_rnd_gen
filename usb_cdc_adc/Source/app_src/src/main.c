@@ -43,8 +43,9 @@ static void usbWaitBusy(void){
 }
 
 static uint8_t transmitAndWaitDone(uint8_t* Buf, uint16_t Len){
-	CDC_Transmit_HS(Buf, Len);
+	uint8_t rcode = CDC_Transmit_HS(Buf, Len);
 	usbWaitBusy();
+	return rcode;
 }
 
 int main(){
