@@ -30,18 +30,25 @@ static uint8_t readDataAndFillBlock(Block_t *block){
 	uint16_t block_size = BLOCK_T_DATA_SIZE / 4;
 	while (block_size--){
 		uint8_t x, y, z, t;
-		x = y = z = t = 0;
 		
-		for (int i = 0; i < 4; i++){
+		L3GD20_readXYZ(&xyz_data);
+		uint16_t termOut = Termometer_getADCReading();
+		
+		x = (xyz_data.x_lsb & 0x03); 
+		y = (xyz_data.y_lsb & 0x03);
+		z = (xyz_data.z_lsb & 0x03); 
+		t = (termOut & 0x03); 
+		
+		for (int i = 0; i < 3; i++){
+			HAL_Delay(1);
+			
 			L3GD20_readXYZ(&xyz_data);
 			uint16_t termOut = Termometer_getADCReading();
 			
-			x |= (xyz_data.x_lsb & 0x03); x <<= 2;
-			y |= (xyz_data.y_lsb & 0x03); y <<= 2;
-			z |= (xyz_data.z_lsb & 0x03); z <<= 2;
-			t |= (termOut & 0x03); t <<= 2;
-			
-			HAL_Delay(1);
+			x <<= 2; x |= (xyz_data.x_lsb & 0x03); 
+			y <<= 2; y |= (xyz_data.y_lsb & 0x03);
+			z <<= 2; z |= (xyz_data.z_lsb & 0x03); 
+			t <<= 2; t |= (termOut & 0x03); 
 		}
 		
 		*buffer++ = x;

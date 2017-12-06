@@ -79,15 +79,16 @@ int main(){
 		
 		if (FLAG_CLIENT_REQUEST) {
 			
-			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
-			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
-			usbWaitBusy();
+//			len = sprintf(TX_DATA, "\r\nRequested %d byte(s)\r\n", REQUESTED_BYTES);
+//			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
+//			usbWaitBusy();
 			
 			if( REQUESTED_BYTES < UINT32_MAX && REQUESTED_BYTES ){	
 
 				uint8_t *dataPtr;
 			
 				if (refillAndGetBytes(REQUESTED_BYTES, &dataPtr)){
+					usbWaitBusy();
 					CDC_Transmit_HS(dataPtr, REQUESTED_BYTES);
 					usbWaitBusy();			
 					unlockBlocks();
