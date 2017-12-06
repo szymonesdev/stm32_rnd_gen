@@ -1,9 +1,3 @@
-/*
-
-	MAIN
-
-*/
-
 #include <stdio.h>
 
 #include "stm32f4xx_hal.h"
@@ -16,8 +10,9 @@
 #include "L3GD20_interface.h"
 #include "enthropy.h"
 
-#define MAX_INPUT_DIGITS 3
-#define MAX_INPUT_NUMBER 512
+#define MAX_INPUT_DIGITS 4
+#define MAX_INPUT_NUMBER 4096
+#define LAB_DEBUG	1
 
 char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
 char BUFF_ERR[]= "\n\rInput error, numbers up to MAX_INPUT_NUMBER are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
@@ -136,11 +131,18 @@ void rgen_processOut(){
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)TXD, len );	
 			  
+#if	LAB_DEBUG
+		for( int i= 0; i < REQUESTED_BYTES; i++ ){
+			usbWaitBusy();
+			CDC_Transmit_HS( (uint8_t*)cdata.randomData[i], 1 );
+		}
+#else
 		for( int i= 0; i < REQUESTED_BYTES; i++ ){
 			len = sprintf( TXD, "%02x", cdata.randomData[i] );
 			usbWaitBusy();
 			CDC_Transmit_HS( (uint8_t*)TXD, len );	
 		}
+#endif
 
 		usbWaitBusy();
 		CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
@@ -187,8 +189,6 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
 }
-
-
 
 void _Error_Handler(char * file, int line)
 {
