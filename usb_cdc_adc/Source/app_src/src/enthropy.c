@@ -37,6 +37,18 @@ static uint8_t getLSB(uint16_t number, uint8_t digits)
 	return (uint8_t)number;
 }
 
+static uint16_t approxUpToMod4( uint16_t number ) 
+{
+	uint8_t approxTo = 4;
+	uint16_t aproxUp4 = number;
+	uint8_t reminder = number % approxTo;
+	if(reminder)
+	{
+		aproxUp4 = number + approxTo - reminder;
+	}
+	return aproxUp4;
+}
+
 static uint8_t getTempByte()
 {
 	uint8_t result = (uint8_t)(Termometer_getADCReading());
@@ -148,7 +160,6 @@ static void fullFillTemporaryArrys()
 
 static void requestFillTemporaryArrys(uint16_t requestedSize)
 {
-	uint16_t debugVal = requestedSize * (uint16_t)(u8Bits / (float)validBits+0.99f) / 4;
 	for (int i = 0; i < requestedSize * (uint16_t)(u8Bits / (float)validBits+0.99f) / 4; ++i)
 	{
 		temp[i] = getLSB(getTempByte(), validBits);
@@ -339,11 +350,12 @@ void requestFillRandomArry(uint16_t requestedSize, double minEnthropy)
 {
 	static int counter = 0;//recursion number, stack overflow
 	++counter;
+	uint16_t reqAproxUp4 = approxUpToMod4(requestedSize);
+	
+	requestFillTemporaryArrys(reqAproxUp4);
+	requestConcatenateTemporaryArrys(reqAproxUp4);
 
-	requestFillTemporaryArrys(requestedSize);
-	requestConcatenateTemporaryArrys(requestedSize);
-
-	requestPushIf(requestedSize, minEnthropy);
+	requestPushIf(reqAproxUp4, minEnthropy);
 
 /*	if (arryPos >= DATA_SIZE)
 		return;
