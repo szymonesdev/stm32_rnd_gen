@@ -80,7 +80,7 @@ void installBlockCluster(BlockCluster_t *blockClusterPtr){
 	invalidateBlockSeq(0, CLUSTER_T_BLOCK_CNT);
 }
 
-uint8_t refillBLock(void) {
+uint8_t refillBlock(void) {
 	for (int i=0; i < CLUSTER_T_BLOCK_CNT; ++i){
 		if (cluster->blockState[i] == BLOCK_USED){
 			readDataAndFillBlock(&(cluster->blocks[i]));
@@ -112,9 +112,14 @@ uint8_t refillAndGetBytes(uint16_t byteCnt, uint8_t **dataStartPtr) {
 	if (minBlocksRequired > CLUSTER_T_BLOCK_CNT) return 0;
 	
 	uint8_t i = 0;
-	while ((i = findReadyBLockSequence(minBlocksRequired))) {
-		refillBLock();
+	for (int i=0; i < minBlocksRequired; ++i){
+		if (cluster->blockState[i] == BLOCK_LOCKED) return 0; // Locked blocks!
+		if (cluster->blockState[i] == BLOCK_USED)
+			refillBlock();
 	}
+//	while ((i = findReadyBLockSequence(minBlocksRequired))) {
+//		refillBlock();
+//	}
 	
 	*dataStartPtr = cluster->blocks[0].data;
 	

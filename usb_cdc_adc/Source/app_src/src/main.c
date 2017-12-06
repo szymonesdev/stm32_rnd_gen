@@ -50,18 +50,17 @@ int main(){
 		Initialize start
 	*/
 	HAL_Init();
-  SystemClock_Config();
+   SystemClock_Config();
 	MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
+   MX_USB_DEVICE_Init();
 
 	Termometer_initialize();
 	L3GD20_initialize();
 	/*
 		Initialize stop
 	*/
-
 	
-	
+	HAL_Delay(1000);
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
 	usbWaitBusy();
@@ -72,7 +71,7 @@ int main(){
 
 		HAL_Delay(20);
 
-		refillBLock();
+		refillBlock();
 		
 		if (FLAG_CLIENT_REQUEST) {
 			

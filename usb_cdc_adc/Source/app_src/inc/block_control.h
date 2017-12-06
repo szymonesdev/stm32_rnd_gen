@@ -26,7 +26,7 @@ typedef struct {
 void installBlockCluster(BlockCluster_t *blockClusterPtr);
 
 // Call to refill one block worth of data
-uint8_t refillBLock(void);
+uint8_t refillBlock(void);
 
 // Get ptr to data, if returns 1
 // Locks blocks, unlockBlocks() to unlock 
