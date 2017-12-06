@@ -7,7 +7,7 @@ static BlockCluster_t *cluster;
 
 	
 static uint8_t invalidateBlockSeq(uint8_t beg, uint8_t len){
-	for (int i=beg; i < beg + len - 1; ++i){
+	for (int i=beg; i < beg + len; ++i){
 		if (i >= CLUSTER_T_BLOCK_CNT) return 0;
 		cluster->blockState[i] = BLOCK_USED;
 	}
@@ -15,7 +15,7 @@ static uint8_t invalidateBlockSeq(uint8_t beg, uint8_t len){
 }
 
 static uint8_t lockBlockSeq(uint8_t beg, uint8_t len){
-	for (int i=beg; i < beg + len - 1; ++i){
+	for (int i=beg; i < beg + len; ++i){
 		if (i >= CLUSTER_T_BLOCK_CNT) return 0;
 		cluster->blockState[i] = BLOCK_LOCKED;
 	}
@@ -52,7 +52,7 @@ static uint8_t readDataAndFillBlock(Block_t *block){
 	return 1; // Error output possibly here
 }
 
-static uint8_t findReadyBLockSequence(uint8_t len){
+static uint8_t findReadyBlockSequence(uint8_t len){
 	uint8_t beg = 0, end = 0;
 	while (end != CLUSTER_T_BLOCK_CNT){
 		beg = end;
@@ -60,6 +60,7 @@ static uint8_t findReadyBLockSequence(uint8_t len){
 			if (beg == CLUSTER_T_BLOCK_CNT) return 0;
 			beg++;
 		}
+		end = beg;
 		while (cluster->blockState[end] == BLOCK_READY) {
 			if (end == CLUSTER_T_BLOCK_CNT) return 0;
 			if (end - beg == len) return beg;
@@ -91,13 +92,16 @@ uint8_t refillBlock(void) {
 	return 0;
 }
 
-uint8_t getBytes(uint16_t byteCnt, uint8_t **dataStartPtr) {
+uint8_t getBytes(uint32_t byteCnt, uint8_t **dataStartPtr) {
+	if (byteCnt > MAX_DATA_SIZE || !byteCnt) return 0;
 	uint16_t minBlocksRequired = byteCnt / BLOCK_T_DATA_SIZE;
 	
-	if (minBlocksRequired > CLUSTER_T_BLOCK_CNT) return 0;
+	minBlocksRequired = minBlocksRequired <= CLUSTER_T_BLOCK_CNT ? 
+								minBlocksRequired : CLUSTER_T_BLOCK_CNT;
+	
 	if (cluster->blockState[minBlocksRequired] == BLOCK_USED) return 0;
 	
-	uint8_t i = findReadyBLockSequence(minBlocksRequired);
+	uint8_t i = findReadyBlockSequence(minBlocksRequired);
 	if (i == 0) return 0;
 	
 	*dataStartPtr = cluster->blocks[i].data;
@@ -106,10 +110,12 @@ uint8_t getBytes(uint16_t byteCnt, uint8_t **dataStartPtr) {
 	return 1;
 }
 
-uint8_t refillAndGetBytes(uint16_t byteCnt, uint8_t **dataStartPtr) {
-	uint16_t minBlocksRequired = byteCnt / BLOCK_T_DATA_SIZE + 1;
+uint8_t refillAndGetBytes(uint32_t byteCnt, uint8_t **dataStartPtr) {
+	if (byteCnt > MAX_DATA_SIZE || !byteCnt) return 0;
+	uint16_t minBlocksRequired = byteCnt /  BLOCK_T_DATA_SIZE + 1;
 	
-	if (minBlocksRequired > CLUSTER_T_BLOCK_CNT) return 0;
+	minBlocksRequired = minBlocksRequired <= CLUSTER_T_BLOCK_CNT ? 
+								minBlocksRequired : CLUSTER_T_BLOCK_CNT;
 	
 	uint8_t i = 0;
 	for (int i=0; i < minBlocksRequired; ++i){
@@ -117,13 +123,37 @@ uint8_t refillAndGetBytes(uint16_t byteCnt, uint8_t **dataStartPtr) {
 		if (cluster->blockState[i] == BLOCK_USED)
 			refillBlock();
 	}
-//	while ((i = findReadyBLockSequence(minBlocksRequired))) {
+//	while ((i = findReadyBlockSequence(minBlocksRequired))) {
 //		refillBlock();
 //	}
 	
 	*dataStartPtr = cluster->blocks[0].data;
 	
 	lockBlockSeq(i, minBlocksRequired);
+	
+	return 1;
+}
+
+uint8_t multiRefillAndGetBytes(uint32_t byteCnt, dataTransmitCallback_t tx){
+	const uint8_t MAX_REPEAT = 10;
+	uint8_t *ptr;
+	if (byteCnt > MAX_DATA_SIZE * MAX_REPEAT) return 0;
+	
+	while (byteCnt > MAX_DATA_SIZE){
+		
+		refillAndGetBytes(MAX_DATA_SIZE, &ptr);
+		
+		tx(ptr, MAX_DATA_SIZE);
+		byteCnt -= MAX_DATA_SIZE;
+		
+		unlockBlocks();
+	}
+	
+	refillAndGetBytes(MAX_DATA_SIZE, &ptr);
+		
+	tx(ptr, byteCnt);
+	
+	unlockBlocks();
 	
 	return 1;
 }

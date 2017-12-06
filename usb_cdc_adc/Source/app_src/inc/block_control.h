@@ -9,7 +9,10 @@
 #include "L3GD20_interface.h"
 
 #define BLOCK_T_DATA_SIZE 				100 // multiple of 4
-#define CLUSTER_T_BLOCK_CNT  			40
+#define CLUSTER_T_BLOCK_CNT  			100
+#define MAX_DATA_SIZE 					(BLOCK_T_DATA_SIZE * CLUSTER_T_BLOCK_CNT)
+
+typedef uint8_t (*dataTransmitCallback_t)(uint8_t*, uint16_t);
 
 enum BlockState_t { BLOCK_READY, BLOCK_USED, BLOCK_LOCKED };
 
@@ -30,11 +33,14 @@ uint8_t refillBlock(void);
 
 // Get ptr to data, if returns 1
 // Locks blocks, unlockBlocks() to unlock 
-uint8_t getBytes(uint16_t byteCnt, uint8_t **dataStartPtr);
+uint8_t getBytes(uint32_t byteCnt, uint8_t **dataStartPtr);
 
 // Refill as many as needed and return ptr to data, if returns 1
 // Locks blocks, unlockBlocks() to unlock 
-uint8_t refillAndGetBytes(uint16_t bytes, uint8_t **dataStartPtr);
+uint8_t refillAndGetBytes(uint32_t bytes, uint8_t **dataStartPtr);
+
+// Multiple generation rounds 
+uint8_t multiRefillAndGetBytes(uint32_t bytes, dataTransmitCallback_t);
 
 // Unlock blocks in use, will be refilled in refillBlock() calls
 void unlockBlocks(void);

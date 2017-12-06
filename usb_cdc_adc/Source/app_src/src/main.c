@@ -22,16 +22,15 @@ static void MX_GPIO_Init(void);
 void SystemClock_Config(void);
 void _Error_Handler(char * file, int line);
 
-char BUFF_INPUT[]= "\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
-char BUFF_ERR[]= "\n\rInput error, numbers up to 4096 are allowed\n\rTRUE RANDOM GENERATOR, input number of bytes to be generated:\n\r";
-char BUFF_INERR[]= "\n\rInput error";
-char NL[2]= {'\n', '\r'};
+char BUFF_INPUT[]= "\r\nTRUE RANDOM GENERATOR, input number of bytes to be generated:\r\n";
+char BUFF_ERR[]= "\r\nInput error, too many requested\r\nTRUE RANDOM GENERATOR, input number of bytes to be generated:\r\n";
+char BUFF_INERR[]= "\r\nInput error";
+char NL[2]= {'\r', '\n'};
 char INPUT_DIGIT[ MAX_INPUT_DIGITS ];
 
 static uint8_t FLAG_CLIENT_REQUEST = 0;
 
 static uint32_t REQUESTED_BYTES, CURRENT_DIGIT; // new usb read, Witold
-static const uint32_t MAX_REQ_BYTES = 6000;
 
 volatile char TX_DATA[256];
 volatile uint32_t len;
@@ -43,6 +42,10 @@ static void usbWaitBusy(void){
 	while (hcdc->TxState != 0){};
 }
 
+static uint8_t transmitAndWaitDone(uint8_t* Buf, uint16_t Len){
+	CDC_Transmit_HS(Buf, Len);
+	usbWaitBusy();
+}
 
 int main(){
 
@@ -79,7 +82,7 @@ int main(){
 			CDC_Transmit_HS( (uint8_t*)TX_DATA, len );
 			usbWaitBusy();
 			
-			if( REQUESTED_BYTES < MAX_REQ_BYTES && REQUESTED_BYTES ){	
+			if( REQUESTED_BYTES < UINT32_MAX && REQUESTED_BYTES ){	
 
 				uint8_t *dataPtr;
 			
@@ -87,7 +90,10 @@ int main(){
 					CDC_Transmit_HS(dataPtr, REQUESTED_BYTES);
 					usbWaitBusy();			
 					unlockBlocks();
-				}	
+				}
+				else {
+					multiRefillAndGetBytes(REQUESTED_BYTES, transmitAndWaitDone);
+				}
 				
 			}
 			else {
@@ -96,11 +102,9 @@ int main(){
 				usbWaitBusy();
 			}
 			
-			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
-		   usbWaitBusy();
+//			CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+//		   usbWaitBusy();
 			FLAG_CLIENT_REQUEST = REQUESTED_BYTES = CURRENT_DIGIT = 0;
-			
-			FLAG_CLIENT_REQUEST = 0;
 		}
 		
 		HAL_Delay(100);
@@ -149,7 +153,7 @@ void rgen_userInput_Szymon(uint8_t* buf, uint32_t *len)
 
 void rgen_userInput_Witold(uint8_t* buf, uint32_t *len) 
 { 
-  const uint32_t MAX_DIGITS = 6; 
+  const uint32_t MAX_DIGITS = 10; 
   if (FLAG_CLIENT_REQUEST) return; 
    
   REQUESTED_BYTES = 0; 
@@ -164,8 +168,14 @@ void rgen_userInput_Witold(uint8_t* buf, uint32_t *len)
       REQUESTED_BYTES += ( ( (char)buf[i] - '0' ) * pow10( *len - i - 1 ) ); 
     } 
     else { 
-      CDC_Transmit_HS( (uint8_t*)BUFF_INERR, strlen( BUFF_INERR ) );   
-      return; 
+		if( buf[i] == '\n' || buf[i] == '\r'){
+			REQUESTED_BYTES /= 10; // 1 more digit was assumed
+			break;
+		}
+		else {
+			CDC_Transmit_HS( (uint8_t*)BUFF_INERR, strlen( BUFF_INERR ) );   
+			return; 
+		}
     } 
      
   } 
