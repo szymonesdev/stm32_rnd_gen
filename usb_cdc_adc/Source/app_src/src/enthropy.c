@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <string.h>
 
+#define max(X, Y) (((X) > (Y)) ? (X) : (Y))
+
 static const uint32_t GYRO_MEASUREMENT_DELAY_MS = 1;
 
 int const DATA_SIZE = 4096;//divisible by 4, max 4096, 4096 for current enthropy_data.h
@@ -110,6 +112,7 @@ static double getAddendPrInside(uint16_t occurences, uint16_t requestedSize)
 	{
 		if (addendPrInside[occurences] == 0)
 		{
+			static int addendCounter = 0;
 			double pr = occurences / (double)DATA_SIZE_4;
 			double addend = pr * log2(pr);
 			addendPrInside[occurences] = addend;
@@ -177,7 +180,7 @@ static void concatenateTemporaryArrys()
 	int pos = 0;
 	for (int i = 0; i < DATA_SIZE_4 * u8Bits; i += (int)(u8Bits / (float)validBits+0.99f))
 	{
-		for (int j = 1; j < (int)(u8Bits / (float)validBits+0.99f); ++j)
+		for (int j = 1; j < (int)(u8Bits / (float)validBits + 0.99f); ++j)
 		{
 			temp[pos] <<= validBits;
 			temp[pos] += temp[i + j];	
@@ -270,10 +273,32 @@ static void pushIf(double minEnthropy)
 
 static void requestPushIf(uint16_t requestedSize, double minEnthropy)
 {
+	uint32_t count = HAL_GetTick();
 	double eTemp = calcEnthropy(temp, requestedSize, getAddendPrInside);
+	uint32_t count5 = HAL_GetTick();
 	double eGyroX = calcEnthropy(gyroX, requestedSize, getAddendPrInside);
+	uint32_t count6 = HAL_GetTick();
 	double eGyroY = calcEnthropy(gyroY, requestedSize, getAddendPrInside);
+	uint32_t count7 = HAL_GetTick();
 	double eGyroZ = calcEnthropy(gyroZ, requestedSize, getAddendPrInside);
+	
+	uint32_t count2 = HAL_GetTick();
+	
+	
+	uint32_t count3 = HAL_GetTick();
+	uint32_t lastCount;
+	uint32_t maxCount = 0;
+/*	for(uint32_t i = 0; i < 0xFFFFFFFF; ++i)
+	{
+		count3 = HAL_GetTick();
+		count3 = max(maxCount, count3);
+		if(lastCount > count3)
+		{
+			count3 = HAL_GetTick();
+		}
+		lastCount = count3;
+	}*/
+	uint32_t miliseconds = count2 - count;
 
 	uint8_t tmpValidBits = validBits;//several /2
 	uint16_t temporaryArrySize = requestedSize / 4;
@@ -374,6 +399,7 @@ ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return po
 	{
 		requestFillRandomArry(requestedSize, minEnthropy);
 	}
+	
 
 	uint8_t* randomArryClient = popRandomArry(requestedSize);
 	double enthropy = calcEnthropy(randomArryClient, requestedSize, getAddendPrClient);
@@ -382,3 +408,33 @@ ClientData getRandomData(uint16_t requestedSize, double minEnthropy )//return po
 	clientData.randomData = randomArryClient;
 	return clientData;
 }
+
+uint16_t benchmark(void)
+{
+	//log double
+	uint32_t count = HAL_GetTick();
+	uint16_t pr = 0;
+	for(uint16_t i = 0; i < 4096; ++i)
+	{
+		pr = i * log2(i);
+	}
+	uint32_t count2 = HAL_GetTick();
+	uint32_t miliseconds = count2 - count;
+	
+	//log2f
+	uint32_t countf = HAL_GetTick();
+	pr = 0;
+	for(uint16_t i = 0; i < 4096; ++i)
+	{
+		pr = i * log2f(i);
+	}
+	uint32_t countf2 = HAL_GetTick();
+	uint32_t milisecondsf = countf2 - countf;
+	
+	//prepare log data
+	double logData[ 4096 ];
+	
+	
+	return pr;
+}
+

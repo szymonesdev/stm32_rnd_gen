@@ -10,5 +10,7 @@ typedef struct {
 } ClientData;
 
 ClientData getRandomData( uint16_t requestedSize, double minEnthropy);
+
+uint16_t benchmark(void);
 	
 #endif

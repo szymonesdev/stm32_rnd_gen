@@ -45,9 +45,11 @@ int main(){
 	L3GD20_initialize();
 	
 	CDC_Transmit_HS( (uint8_t*)BUFF_INPUT, strlen( BUFF_INPUT ) );
+	ClientData cdata;
+	cdata = getRandomData( 4096, 0.0 );
+	benchmark();
 	
 	while(1){
-
 		if( FLAG_RXD_RD ){
 		  rgen_processIn( RXD, RXD_LEN);
 			FLAG_RXD_RD= 0;
